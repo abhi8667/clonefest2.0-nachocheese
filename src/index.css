@@ -314,3 +314,122 @@ pre[class*="language-"] {
 .navbar-scrolled {
   box-shadow: 0 4px 30px -4px rgba(0, 0, 0, 0.5);
 }
+
+/* ================================================
+   Motion system
+   All animations use only compositor-friendly
+   properties (transform / opacity) and are disabled
+   wholesale by the prefers-reduced-motion block below.
+   ================================================ */
+
+/* Panels entering the page: rise + fade, with a stagger utility so a
+   group of terminal windows resolves in sequence rather than all at once. */
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-panel-in {
+  animation: panel-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.stagger-1 { animation-delay: 0.06s; }
+.stagger-2 { animation-delay: 0.12s; }
+.stagger-3 { animation-delay: 0.18s; }
+.stagger-4 { animation-delay: 0.24s; }
+
+/* Terminal windows lift slightly toward the viewer on hover. */
+.terminal-window {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.terminal-window:hover {
+  transform: translateY(-2px);
+}
+
+/* The blinking block cursor used across terminal surfaces. */
+@keyframes terminal-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.terminal-cursor {
+  animation: terminal-blink 1.1s steps(1) infinite;
+}
+
+/* Nav tab activation: the underline sweeps in from the left. */
+@keyframes tab-underline {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.tab-active-underline::after {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 2px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+  transform-origin: left center;
+  animation: tab-underline 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Buttons: press feedback that reads as a physical key press. */
+.btn-cyber-primary:active,
+.btn-cyber-danger:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* ================================================
+   Accessibility baseline: focus visibility + motion
+   ================================================ */
+
+/* Guarantee a visible focus ring on every interactive element, even where
+   a component forgot to set one explicitly, and even inside overflow-hidden
+   glass panels (outline is never clipped like box-shadow can be). */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect the OS-level motion preference: collapse all animation/transition
+   timing to effectively instant instead of leaving glows, confetti-adjacent
+   transforms, and card hovers running for users who've opted out. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Also neutralize the motion itself, not just its duration, so nothing
+     shifts position for users who opted out of movement. */
+  .terminal-window:hover,
+  .btn-cyber-primary:hover,
+  .btn-cyber-primary:active,
+  .btn-cyber-danger:hover,
+  .btn-cyber-danger:active,
+  .feature-card:hover {
+    transform: none !important;
+  }
+}

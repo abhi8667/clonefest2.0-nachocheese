@@ -23,10 +23,13 @@ import {
   Users,
   Link as LinkIcon,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  SlidersHorizontal,
+  ChevronDown
 } from 'lucide-react';
 import { SecretFormatter, FileAttachment, DecryptedSecret, CreatedSecretResult } from '../types';
 import { generateMasterKey, encryptSecret, encryptMultiRecipientSecret } from '../crypto/webcrypto';
+import { TerminalWindow } from './TerminalWindow';
 
 interface SecretEditorProps {
   onSecretCreated: (result: CreatedSecretResult) => void;
@@ -56,6 +59,9 @@ interface SlotEditorItem {
 }
 
 export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) => {
+  // Progressive disclosure: hide Duress / Time-Lock / Multi-Recipient behind an Advanced toggle
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+
   // Sharing Mode: Standard (Single Key) vs Multi-Recipient Envelopes
   const [sharingMode, setSharingMode] = useState<'standard' | 'multi'>('standard');
 
@@ -105,6 +111,10 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
   // UI status
   const [isEncrypting, setIsEncrypting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Count of active advanced features, shown as a badge on the Advanced toggle
+  const advancedFeatureCount =
+    (sharingMode === 'multi' ? 1 : 0) + (useDuress ? 1 : 0) + (timeLockEnabled ? 1 : 0);
 
 
   // Auto-convert ENV entries to text when in env mode
@@ -430,8 +440,16 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      
+    <div className="max-w-5xl mx-auto">
+    <TerminalWindow path="anonymous@cipherdrop — new-secret" glow stagger={2}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleCreateSecret();
+      }}
+      className="space-y-6 p-6"
+    >
+
       {/* Top Banner / Security Badge & Sharing Strategy */}
       <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-emerald-500/20 bg-gradient-to-r from-emerald-950/20 via-obsidian-900 to-obsidian-900">
         <div className="flex items-center gap-3">
@@ -439,7 +457,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
             <Lock className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <h2 className="text-sm font-mono font-semibold text-slate-100 flex items-center gap-2">
               Zero-Knowledge End-to-End Encryption
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
             </h2>
@@ -449,38 +467,69 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
           </div>
         </div>
 
-        {/* Sharing Mode Toggle */}
-        <div className="flex items-center gap-1 bg-obsidian-950 p-1 rounded-xl border border-white/10">
-          <button
-            type="button"
-            onClick={() => setSharingMode('standard')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              sharingMode === 'standard' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <LinkIcon className="w-3.5 h-3.5" />
-            Standard Link
-          </button>
-          <button
-            type="button"
-            onClick={() => setSharingMode('multi')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              sharingMode === 'multi' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            Multi-Recipient Envelopes
-            <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
-              sharingMode === 'multi' ? 'bg-obsidian-950 text-emerald-400' : 'bg-white/10 text-slate-300'
-            }`}>
-              {recipients.length}
+        {/* Advanced Options Toggle */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all ${
+            showAdvanced
+              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+              : 'bg-obsidian-950 text-slate-300 border-white/10 hover:border-emerald-500/30 hover:text-emerald-300'
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          Advanced Options
+          {advancedFeatureCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500 text-obsidian-950 font-bold">
+              {advancedFeatureCount}
             </span>
-          </button>
-        </div>
+          )}
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+        </button>
       </div>
 
+      {/* Advanced: Sharing Mode (Standard vs Multi-Recipient) */}
+      {showAdvanced && (
+        <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono flex items-center gap-2">
+              <Users className="w-3.5 h-3.5 text-emerald-400" />
+              Sharing Strategy
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">Sending to one person, or several? Choose how the key gets wrapped.</p>
+          </div>
+          <div className="flex items-center gap-1 bg-obsidian-950 p-1 rounded-xl border border-white/10">
+            <button
+              type="button"
+              onClick={() => setSharingMode('standard')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                sharingMode === 'standard' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <LinkIcon className="w-3.5 h-3.5" />
+              Standard Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setSharingMode('multi')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                sharingMode === 'multi' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              Multi-Recipient Envelopes
+              <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                sharingMode === 'multi' ? 'bg-obsidian-950 text-emerald-400' : 'bg-white/10 text-slate-300'
+              }`}>
+                {recipients.length}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Multi-Recipient Slots Configuration Drawer */}
-      {sharingMode === 'multi' && (
+      {showAdvanced && sharingMode === 'multi' && (
         <div className="glass-panel p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/10 space-y-4 animate-fadeIn">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/20 pb-3">
             <div>
@@ -527,8 +576,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
                     <button
                       type="button"
                       onClick={() => handleRemoveRecipient(r.id)}
-                      className="text-slate-500 hover:text-rose-400 p-1 rounded transition-colors"
-                      title="Remove Recipient Slot"
+                      className="text-slate-500 hover:text-rose-400 p-1.5 rounded transition-colors"
+                      title="Remove recipient slot"
+                      aria-label={`Remove recipient slot: ${r.label || `Recipient ${idx + 1}`}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -554,7 +604,10 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
                       type="password"
                       value={r.password}
                       onChange={(e) => handleUpdateRecipient(r.id, { password: e.target.value })}
-                      placeholder="Optional slot passphrase..."
+                      placeholder="Optional slot passphrase…"
+                      autoComplete="off"
+                      data-1p-ignore
+                      data-lpignore="true"
                       className="w-full bg-obsidian-900 border border-white/10 px-2 py-1 rounded text-[11px] font-mono text-slate-200 placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -667,8 +720,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
               onChange={(e) => setText(e.target.value)}
               placeholder={
                 formatter === 'code'
-                  ? '// Paste your sensitive code, private keys (PEM), or server configuration here...'
-                  : 'Paste confidential message, passwords, or sensitive notes here...'
+                  ? '// Paste your sensitive code, private keys (PEM), or server configuration here…'
+                  : 'Paste confidential message, passwords, or sensitive notes here…'
               }
               rows={14}
               className="w-full p-4 bg-transparent font-mono text-sm text-emerald-100 placeholder:text-slate-600 focus:outline-none resize-y leading-relaxed"
@@ -681,7 +734,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="# Confidential Report&#10;&#10;Enter markdown text here...&#10;- Item 1&#10;- Item 2"
+                placeholder="# Confidential Report&#10;&#10;Enter markdown text here…&#10;- Item 1&#10;- Item 2"
                 rows={14}
                 className="w-full p-4 bg-transparent font-mono text-sm text-emerald-100 placeholder:text-slate-600 focus:outline-none resize-y leading-relaxed"
               />
@@ -723,6 +776,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
                         setEnvEntries(updated);
                       }}
                       placeholder="value_secret_string"
+                      autoComplete="off"
+                      data-1p-ignore
+                      data-lpignore="true"
                       className="w-full glass-input px-3 py-2 pr-9 rounded-lg text-xs font-mono text-slate-100"
                     />
                     <button
@@ -732,7 +788,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
                         updated[idx].masked = !updated[idx].masked;
                         setEnvEntries(updated);
                       }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      aria-label={entry.masked ? 'Show value' : 'Hide value'}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-200 rounded-md"
                     >
                       {entry.masked ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
@@ -744,6 +801,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
                         setEnvEntries(envEntries.filter((_, i) => i !== idx));
                       }
                     }}
+                    aria-label="Remove this key-value pair"
                     className="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -774,7 +832,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
             <button
               type="button"
               onClick={() => setAttachment(null)}
-              className="text-slate-400 hover:text-rose-400 transition-colors"
+              aria-label="Remove attached file"
+              className="p-1 text-slate-400 hover:text-rose-400 transition-colors rounded-md"
             >
               <X className="w-4 h-4" />
             </button>
@@ -892,14 +951,23 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter strong primary password..."
+                placeholder="Enter strong primary password…"
+                autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
                 className="w-full glass-input px-3 py-2 rounded-lg text-xs font-mono text-slate-100"
               />
             )}
           </div>
 
           {/* Duress Mode Accordion */}
-          {usePassword && (
+          {usePassword && !showAdvanced && (
+            <p className="pt-2 border-t border-white/5 text-[11px] text-slate-500 flex items-center gap-1.5">
+              <ShieldAlert className="w-3 h-3 text-amber-400/70" />
+              Need plausible deniability? Turn on <span className="text-emerald-400 font-mono">Advanced Options</span> above for duress mode.
+            </p>
+          )}
+          {usePassword && showAdvanced && (
             <div className="pt-2 border-t border-white/5 space-y-2">
               <label className="flex items-center gap-2 text-xs text-amber-300 cursor-pointer">
                 <input
@@ -923,13 +991,16 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
                     type="password"
                     value={duressPassword}
                     onChange={(e) => setDuressPassword(e.target.value)}
-                    placeholder="Enter secondary Duress Password..."
+                    placeholder="Enter secondary Duress Password…"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
                     className="w-full glass-input px-3 py-1.5 rounded-lg text-xs font-mono text-amber-200"
                   />
                   <textarea
                     value={decoyText}
                     onChange={(e) => setDecoyText(e.target.value)}
-                    placeholder="Enter harmless decoy notes or mock keys..."
+                    placeholder="Enter harmless decoy notes or mock keys…"
                     rows={2}
                     className="w-full glass-input p-2 rounded-lg text-xs font-mono text-slate-300 resize-none"
                   />
@@ -940,6 +1011,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         </div>
 
         {/* Time-Lock Secrets Card (Server-Assisted Release Gate) */}
+        {showAdvanced && (
         <div className={`glass-panel p-4 rounded-2xl border transition-all md:col-span-2 ${
           timeLockEnabled ? 'border-amber-500/40 bg-amber-950/10 shadow-lg shadow-amber-950/20' : 'border-white/10'
         } space-y-4`}>
@@ -1034,6 +1106,14 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
             )}
           </div>
         </div>
+        )}
+
+        {!showAdvanced && (
+          <div className="glass-panel p-4 rounded-2xl border border-white/10 md:col-span-2 flex items-center gap-2.5 text-xs text-slate-500">
+            <Clock className="w-3.5 h-3.5 text-slate-500" />
+            Need a scheduled release? Time-lock lives under <span className="text-emerald-400 font-mono">Advanced Options</span> above.
+          </div>
+        )}
 
       </div>
 
@@ -1057,15 +1137,14 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         </div>
 
         <button
-          type="button"
+          type="submit"
           disabled={isEncrypting}
-          onClick={handleCreateSecret}
           className="btn-cyber-primary flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50"
         >
           {isEncrypting ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>Encrypting in WebCrypto...</span>
+              <span>Encrypting in WebCrypto…</span>
             </>
           ) : (
             <>
@@ -1076,6 +1155,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         </button>
       </div>
 
+    </form>
+    </TerminalWindow>
     </div>
   );
 };

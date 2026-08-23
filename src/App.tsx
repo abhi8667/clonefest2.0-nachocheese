@@ -10,11 +10,35 @@ import { StegoTool } from './components/StegoTool';
 import { LocalVault } from './components/LocalVault';
 import { ApiCliHub } from './components/ApiCliHub';
 import { HeroSection } from './components/HeroSection';
+import { OnboardingLanding } from './components/OnboardingLanding';
+import { TerminalLanding } from './components/TerminalLanding';
 import { ActiveTab, CreatedSecretResult } from './types';
 import { ShieldCheck, Lock, Terminal, Radio, Github } from 'lucide-react';
 
+const ONBOARDING_KEY = 'cipherdrop-onboarding-complete';
+const TERMINAL_INTRO_KEY = 'cipherdrop-terminal-intro-seen';
+
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('create');
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
+    return localStorage.getItem(ONBOARDING_KEY) !== 'true';
+  });
+
+  // Deep links (share links, admin links, drop requests, war-room invites) should
+  // land directly on their destination, not get gated behind the terminal splash.
+  const [showTerminalIntro, setShowTerminalIntro] = useState<boolean>(() => {
+    return sessionStorage.getItem(TERMINAL_INTRO_KEY) !== 'true' && !window.location.hash;
+  });
+
+  const completeTerminalIntro = () => {
+    sessionStorage.setItem(TERMINAL_INTRO_KEY, 'true');
+    setShowTerminalIntro(false);
+  };
+
+  const completeOnboarding = () => {
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    setShowOnboarding(false);
+  };
 
   // Viewing an existing secret (Standard single-key or Multi-recipient slot)
   const [viewingSecret, setViewingSecret] = useState<{ pasteId: string; masterKey: string; slotId?: string } | null>(null);
@@ -105,9 +129,13 @@ export function App() {
   };
 
 
+  if (showTerminalIntro) {
+    return <TerminalLanding onEnter={completeTerminalIntro} />;
+  }
+
   return (
     <div className="min-h-screen bg-obsidian-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-300">
-      
+
       {/* Background Decorative Glows (Animated) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute -top-40 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl bg-glow-1"></div>
@@ -139,10 +167,14 @@ export function App() {
         ) : (
           <div key={activeTab} className="animate-fade-in">
             {activeTab === 'create' && (
-              <>
-                <HeroSection onScrollToEditor={() => {}} />
-                <SecretEditor onSecretCreated={handleSecretCreated} />
-              </>
+              showOnboarding ? (
+                <OnboardingLanding onEnter={completeOnboarding} />
+              ) : (
+                <>
+                  <HeroSection onScrollToEditor={() => {}} />
+                  <SecretEditor onSecretCreated={handleSecretCreated} />
+                </>
+              )
             )}
 
             {activeTab === 'request-drop' && (
@@ -216,6 +248,13 @@ export function App() {
                 <a href="https://github.com/abhi8667/clonefest2.0-nachocheese" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
                   <Github className="w-3.5 h-3.5" /> GitHub
                 </a>
+                <span className="text-white/10">|</span>
+                <span
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                  onClick={() => { setActiveTab('create' as ActiveTab); window.location.hash = ''; setViewingSecret(null); setShowOnboarding(true); }}
+                >
+                  How It Works
+                </span>
                 <span className="text-white/10">|</span>
                 <span className="hover:text-emerald-400 transition-colors cursor-pointer" onClick={() => { setActiveTab('api-docs' as ActiveTab); window.location.hash = ''; }}>API Docs</span>
                 <span className="text-white/10">|</span>

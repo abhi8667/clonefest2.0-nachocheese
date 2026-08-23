@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { generateMasterKey, encryptSecret, decryptSecret } from '../crypto/webcrypto';
 import { FeatureHighlights } from './FeatureHighlights';
+import { TerminalWindow } from './TerminalWindow';
 
 interface IncidentWarRoomProps {
   initialRoomId?: string;
@@ -165,12 +166,14 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
   // ----------------------------------------------------
   if (isNuked) {
     return (
-      <div className="max-w-md mx-auto p-8 glass-panel rounded-3xl border border-rose-500/30 text-center space-y-6">
+      <div className="max-w-md mx-auto">
+      <TerminalWindow path="anonymous@cipherdrop — incident-room --nuked" accent="rose">
+      <div className="p-8 text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
           <Flame className="w-8 h-8 animate-pulse" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-slate-100">War Room Nuked & Zeroized</h2>
+          <h2 className="font-mono text-xl font-bold text-slate-100">War Room Nuked & Zeroized</h2>
           <p className="text-xs text-slate-400">
             Emergency zeroization was triggered. All peer buffers and live pad states have been wiped from memory.
           </p>
@@ -188,6 +191,8 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
           Create New Incident Room
         </button>
       </div>
+      </TerminalWindow>
+      </div>
     );
   }
 
@@ -197,13 +202,14 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
   if (!inRoom) {
     return (
       <div className="max-w-xl mx-auto space-y-6">
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-6">
+        <TerminalWindow path="anonymous@cipherdrop — incident-room --join" accent="amber" glow className="shadow-2xl">
+        <div className="p-6 sm:p-8 space-y-6">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
               <Flame className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-100">Real-Time E2EE Incident War Room</h2>
+              <h2 className="font-mono text-lg font-bold text-slate-100">Real-Time E2EE Incident War Room</h2>
               <p className="text-xs text-slate-400 font-mono">Live Ephemeral Scratchpad & Secure Relay</p>
             </div>
           </div>
@@ -226,9 +232,10 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
               <span>Generate Instant War Room</span>
             </button>
 
-            <div className="relative flex items-center justify-center">
-              <div className="border-t border-white/10 w-full"></div>
-              <span className="bg-obsidian-900 px-3 text-[10px] font-mono text-slate-500 uppercase">or join existing</span>
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/10"></div>
+              <span className="text-[10px] font-mono text-slate-500 uppercase whitespace-nowrap">or join existing</span>
+              <div className="h-px flex-1 bg-white/10"></div>
             </div>
 
             <div className="flex gap-2">
@@ -236,14 +243,14 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
                 type="text"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
-                placeholder="Enter Room ID..."
+                placeholder="Enter Room ID…"
                 className="w-1/2 glass-input px-3 py-2 rounded-xl text-xs font-mono text-slate-200"
               />
               <input
                 type="text"
                 value={roomKey}
                 onChange={(e) => setRoomKey(e.target.value)}
-                placeholder="Enter Room Decryption Key..."
+                placeholder="Enter Room Decryption Key…"
                 className="w-1/2 glass-input px-3 py-2 rounded-xl text-xs font-mono text-slate-200"
               />
             </div>
@@ -257,6 +264,7 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
             </button>
           </div>
         </div>
+        </TerminalWindow>
       </div>
     );
   }
@@ -268,7 +276,8 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
     <div className="max-w-6xl mx-auto space-y-6">
       
       {/* Top Banner */}
-      <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-amber-500/30 bg-gradient-to-r from-amber-950/20 via-obsidian-900 to-obsidian-900 shadow-xl">
+      <TerminalWindow path="anonymous@cipherdrop — incident-room" accent="amber" glow className="shadow-xl">
+      <div className="p-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
             <Radio className="w-5 h-5 animate-pulse" />
@@ -307,12 +316,14 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
           </button>
         </div>
       </div>
+      </TerminalWindow>
 
       {/* Main Grid: Collaborative Pad + Encrypted Live Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Live Shared Pad (2 cols) */}
-        <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden border border-white/10 flex flex-col shadow-2xl">
+        <div className="lg:col-span-2">
+        <TerminalWindow path="anonymous@cipherdrop — scratchpad" accent="amber" stagger={2} className="flex flex-col h-full shadow-2xl" bodyClassName="flex flex-col flex-1 min-h-0">
           <div className="px-6 py-3 bg-obsidian-950 border-b border-white/5 flex items-center justify-between text-xs font-mono text-slate-400">
             <span className="text-emerald-400 font-bold uppercase">Shared Incident Scratchpad</span>
             <span>Syncs live with peers</span>
@@ -320,15 +331,16 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
           <textarea
             value={padText}
             onChange={(e) => handlePadChange(e.target.value)}
-            placeholder="Type confidential incident notes or keys here..."
+            placeholder="Type confidential incident notes or keys here…"
             rows={18}
             className="w-full flex-1 p-6 bg-obsidian-950/60 font-mono text-xs text-emerald-200 placeholder:text-slate-600 focus:outline-none resize-none leading-relaxed"
             spellCheck={false}
           />
+        </TerminalWindow>
         </div>
 
         {/* Live E2EE Chat (1 col) */}
-        <div className="glass-panel rounded-3xl overflow-hidden border border-white/10 flex flex-col h-[520px] shadow-2xl">
+        <TerminalWindow path="anonymous@cipherdrop — war-log" accent="amber" stagger={3} className="flex flex-col h-[520px] shadow-2xl" bodyClassName="flex flex-col flex-1 min-h-0">
           <div className="px-4 py-3 bg-obsidian-950 border-b border-white/5 flex items-center justify-between text-xs font-mono text-slate-400">
             <span className="text-slate-200 font-bold uppercase">E2EE War Log</span>
             <input
@@ -365,7 +377,7 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Send E2EE message..."
+              placeholder="Send E2EE message…"
               className="flex-1 glass-input px-3 py-2 rounded-xl text-xs text-slate-200 font-mono"
             />
             <button
@@ -376,7 +388,7 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
               <Send className="w-4 h-4" />
             </button>
           </form>
-        </div>
+        </TerminalWindow>
 
       </div>
 

@@ -17,6 +17,7 @@ import {
 } from '../crypto/webcrypto';
 import { DecryptedSecret } from '../types';
 import { FeatureHighlights } from './FeatureHighlights';
+import { TerminalWindow } from './TerminalWindow';
 
 export const LocalVault: React.FC = () => {
   const [mode, setMode] = useState<'encrypt' | 'decrypt'>('encrypt');
@@ -71,13 +72,14 @@ export const LocalVault: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       
       {/* Intro Header */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <TerminalWindow path="anonymous@cipherdrop — vault --offline" glow>
+      <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             <WifiOff className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <h2 className="font-mono text-base font-bold text-slate-100 flex items-center gap-2">
               Offline Cryptographic Sandbox
               <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 100% Air-Gapped
@@ -109,10 +111,12 @@ export const LocalVault: React.FC = () => {
           </button>
         </div>
       </div>
+      </TerminalWindow>
 
       {mode === 'encrypt' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
+          <TerminalWindow path="anonymous@cipherdrop — vault/input" stagger={1}>
+          <div className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
                 Plaintext Payload
@@ -120,7 +124,7 @@ export const LocalVault: React.FC = () => {
               <textarea
                 value={plaintext}
                 onChange={(e) => setPlaintext(e.target.value)}
-                placeholder="Enter secret text..."
+                placeholder="Enter secret text…"
                 rows={6}
                 className="w-full glass-input p-3 rounded-xl text-xs font-mono text-emerald-200 resize-none focus:outline-none"
               />
@@ -134,7 +138,7 @@ export const LocalVault: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter passphrase (optional)..."
+                placeholder="Enter passphrase (optional)…"
                 className="w-full glass-input px-3 py-2 rounded-xl text-xs font-mono text-slate-100"
               />
             </div>
@@ -147,8 +151,10 @@ export const LocalVault: React.FC = () => {
               <span>Execute WebCrypto Encryption</span>
             </button>
           </div>
+          </TerminalWindow>
 
-          <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
+          <TerminalWindow path="anonymous@cipherdrop — vault/output" stagger={2}>
+          <div className="p-6 space-y-4">
             <h3 className="text-xs font-mono font-bold uppercase text-emerald-400">
               Generated Ciphertext & Key
             </h3>
@@ -199,10 +205,13 @@ export const LocalVault: React.FC = () => {
               </div>
             )}
           </div>
+          </TerminalWindow>
         </div>
       ) : (
         /* Decrypt Sandbox */
-        <div className="max-w-2xl mx-auto glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-4">
+        <div className="max-w-2xl mx-auto">
+        <TerminalWindow path="anonymous@cipherdrop — vault/decrypt">
+        <div className="p-6 sm:p-8 space-y-4">
           <div>
             <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
               Encrypted JSON Payload
@@ -210,7 +219,7 @@ export const LocalVault: React.FC = () => {
             <textarea
               value={ciphertextInput}
               onChange={(e) => setCiphertextInput(e.target.value)}
-              placeholder='Paste { "v": 2, "ct": "...", "iv": "..." }'
+              placeholder='Paste { "v": 2, "ct": "…", "iv": "…" }'
               rows={4}
               className="w-full glass-input p-3 rounded-xl text-xs font-mono text-slate-200 resize-none"
             />
@@ -225,7 +234,7 @@ export const LocalVault: React.FC = () => {
                 type="text"
                 value={decryptKeyInput}
                 onChange={(e) => setDecryptKeyInput(e.target.value)}
-                placeholder="Enter master key..."
+                placeholder="Enter master key…"
                 className="w-full glass-input px-3 py-2 rounded-xl text-xs font-mono text-emerald-300"
               />
             </div>
@@ -237,7 +246,7 @@ export const LocalVault: React.FC = () => {
                 type="password"
                 value={decryptPasswordInput}
                 onChange={(e) => setDecryptPasswordInput(e.target.value)}
-                placeholder="Enter passphrase..."
+                placeholder="Enter passphrase…"
                 className="w-full glass-input px-3 py-2 rounded-xl text-xs font-mono text-slate-200"
               />
             </div>
@@ -265,6 +274,8 @@ export const LocalVault: React.FC = () => {
               </pre>
             </div>
           )}
+        </div>
+        </TerminalWindow>
         </div>
       )}
 

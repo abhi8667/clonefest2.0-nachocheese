@@ -25,6 +25,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import { PasteResponse, DecryptedSecret, StoredComment, RecipientEnvelopeSlot } from '../types';
+import { TerminalWindow } from './TerminalWindow';
 import { 
   decryptSecret, 
   encryptSecret, 
@@ -386,27 +387,33 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-12 glass-panel rounded-3xl border border-white/10 flex flex-col items-center justify-center space-y-4">
+      <div className="max-w-4xl mx-auto">
+      <TerminalWindow path="anonymous@cipherdrop — fetching">
+      <div className="p-12 flex flex-col items-center justify-center space-y-4">
         <div className="relative w-16 h-16">
           <div className="w-16 h-16 rounded-2xl border-2 border-emerald-500/30 border-t-emerald-400 animate-spin"></div>
           <Lock className="w-6 h-6 text-emerald-400 absolute inset-0 m-auto animate-pulse" />
         </div>
         <div className="text-center">
           <h3 className="text-sm font-mono font-bold text-slate-200 uppercase tracking-wider">Fetching Ciphertext</h3>
-          <p className="text-xs text-slate-400">Zero-Knowledge handshake with server...</p>
+          <p className="text-xs text-slate-400">Zero-Knowledge handshake with server…</p>
         </div>
+      </div>
+      </TerminalWindow>
       </div>
     );
   }
 
   if (fetchError) {
     return (
-      <div className="max-w-xl mx-auto p-8 glass-panel rounded-3xl border border-rose-500/30 text-center space-y-6">
+      <div className="max-w-xl mx-auto">
+      <TerminalWindow path="anonymous@cipherdrop — unavailable" accent="rose">
+      <div className="p-8 text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
           <Flame className="w-8 h-8" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-slate-100">Secret Unavailable</h2>
+          <h2 className="font-mono text-xl font-bold text-slate-100">Secret Unavailable</h2>
           <p className="text-sm text-slate-400 leading-relaxed">{fetchError}</p>
         </div>
         <div className="p-3 bg-obsidian-950 rounded-xl text-xs font-mono text-slate-500 border border-white/5">
@@ -419,6 +426,8 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           Create New Secret
         </button>
       </div>
+      </TerminalWindow>
+      </div>
     );
   }
 
@@ -429,7 +438,9 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   if (isTimeLocked && !decryptedSecret) {
     const isUnlockedNow = timeLockCountdown !== null && timeLockCountdown <= 0;
     return (
-      <div className="max-w-xl mx-auto p-8 glass-panel-glow rounded-3xl border border-amber-500/30 text-center space-y-6 shadow-2xl animate-fadeIn">
+      <div className="max-w-xl mx-auto animate-fadeIn">
+      <TerminalWindow path="anonymous@cipherdrop — time-locked" accent="amber" glow className="shadow-2xl">
+      <div className="p-8 text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
           {isUnlockedNow ? <Unlock className="w-8 h-8 text-emerald-400 animate-bounce" /> : <Lock className="w-8 h-8 text-amber-400" />}
         </div>
@@ -512,6 +523,8 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           </button>
         </div>
       </div>
+      </TerminalWindow>
+      </div>
     );
   }
 
@@ -521,13 +534,15 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
 
   if (isPasswordRequired && !decryptedSecret) {
     return (
-      <div className="max-w-md mx-auto p-8 glass-panel-glow rounded-3xl border border-emerald-500/30 shadow-2xl space-y-6">
+      <div className="max-w-md mx-auto">
+      <TerminalWindow path="anonymous@cipherdrop — locked" glow>
+      <div className="p-8 space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             <Lock className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-100">Password Protected Secret</h2>
+            <h2 className="font-mono text-lg font-bold text-slate-100">Password Protected Secret</h2>
             <p className="text-xs text-slate-400">
               {activeSlotInfo ? `Enter passphrase for recipient [${activeSlotInfo.label}]` : 'Enter password to derive AES-256 key'}
             </p>
@@ -542,7 +557,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
               autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password..."
+              placeholder="Enter password…"
               className="w-full glass-input px-4 py-3 rounded-xl text-sm font-mono text-slate-100 focus:outline-none"
             />
           </div>
@@ -577,6 +592,8 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           PBKDF2-SHA256 • Hardware Accelerated
         </div>
       </div>
+      </TerminalWindow>
+      </div>
     );
   }
 
@@ -586,12 +603,14 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
 
   if (isBurnedFromMemory) {
     return (
-      <div className="max-w-md mx-auto p-8 glass-panel rounded-3xl border border-rose-500/30 text-center space-y-6">
+      <div className="max-w-md mx-auto">
+      <TerminalWindow path="anonymous@cipherdrop — zeroized" accent="rose">
+      <div className="p-8 text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
           <ShieldCheck className="w-8 h-8" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-lg font-bold text-slate-100">Cryptographic Memory Zeroized</h2>
+          <h2 className="font-mono text-lg font-bold text-slate-100">Cryptographic Memory Zeroized</h2>
           <p className="text-xs text-slate-400">
             Plaintext buffers and derived keys have been purged with random PRNG bytes from browser memory.
           </p>
@@ -603,6 +622,8 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           Return Home
         </button>
       </div>
+      </TerminalWindow>
+      </div>
     );
   }
 
@@ -612,16 +633,17 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
 
   return (
     <div className={`max-w-5xl mx-auto space-y-6 transition-all duration-700 ${isBurningAnimation ? 'opacity-0 scale-95 filter blur-md' : 'opacity-100 scale-100'}`}>
-      
+
       {/* Top Banner: Status & Zeroization Controls */}
-      <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-emerald-500/30 bg-gradient-to-r from-emerald-950/20 via-obsidian-900 to-obsidian-900 shadow-xl">
+      <TerminalWindow path="anonymous@cipherdrop — decrypted" glow className="shadow-xl">
+      <div className="p-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             <Unlock className="w-5 h-5" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-bold text-slate-100">Decrypted Successfully</h2>
+              <h2 className="text-sm font-mono font-bold text-slate-100">Decrypted Successfully</h2>
               
               {activeSlotInfo && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono flex items-center gap-1">
@@ -682,10 +704,15 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           </button>
         </div>
       </div>
+      </TerminalWindow>
 
       {/* Main Secret Content Viewer */}
-      <div className="glass-panel rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-        
+      <TerminalWindow
+        path={`anonymous@cipherdrop — ${decryptedSecret?.formatter || 'view'}`}
+        glow
+        className="shadow-2xl"
+      >
+
         {/* Content Header Bar */}
         <div className="flex items-center justify-between px-6 py-3 bg-obsidian-950 border-b border-white/5 text-xs font-mono text-slate-400">
           <div className="flex items-center gap-2">
@@ -764,15 +791,16 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
             </a>
           </div>
         )}
-      </div>
+      </TerminalWindow>
 
       {/* Discussion & Encrypted Comments Section */}
       {pasteData?.openDiscussion && (
-        <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6 shadow-xl">
+        <TerminalWindow path="anonymous@cipherdrop — discussion" className="shadow-xl">
+        <div className="p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-white/5 pb-4">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-sm font-bold text-slate-200">Encrypted Discussion ({comments.length})</h3>
+              <h3 className="font-mono text-sm font-bold text-slate-200">Encrypted Discussion ({comments.length})</h3>
             </div>
             <span className="text-xs font-mono text-emerald-400/80">E2EE Comment Thread</span>
           </div>
@@ -810,7 +838,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
                 type="text"
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
-                placeholder="Type an end-to-end encrypted reply..."
+                placeholder="Type an end-to-end encrypted reply…"
                 className="sm:col-span-3 glass-input px-4 py-2 rounded-xl text-xs text-slate-200"
               />
             </div>
@@ -826,6 +854,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
             </div>
           </form>
         </div>
+        </TerminalWindow>
       )}
 
       {/* Manual Delete Trigger Link */}
@@ -842,8 +871,10 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
       {/* Manual Deletion Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-md">
-          <div className="w-full max-w-md glass-panel p-6 rounded-3xl border border-rose-500/30 space-y-4">
-            <h3 className="text-sm font-bold text-rose-400 flex items-center gap-2">
+          <div className="w-full max-w-md">
+        <TerminalWindow path="anonymous@cipherdrop — delete" accent="rose">
+        <div className="p-6 space-y-4">
+            <h3 className="font-mono text-sm font-bold text-rose-400 flex items-center gap-2">
               <Flame className="w-4 h-4" />
               Manual Secret Deletion
             </h3>
@@ -854,7 +885,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
               type="text"
               value={deleteTokenInput}
               onChange={(e) => setDeleteTokenInput(e.target.value)}
-              placeholder="Enter 32-character deletion token..."
+              placeholder="Enter 32-character deletion token…"
               className="w-full glass-input px-3 py-2 rounded-xl text-xs font-mono text-rose-200"
             />
             {deleteStatus && <p className="text-xs font-mono text-rose-300">{deleteStatus}</p>}
@@ -875,6 +906,8 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
               </button>
             </div>
           </div>
+        </TerminalWindow>
+        </div>
         </div>
       )}
 

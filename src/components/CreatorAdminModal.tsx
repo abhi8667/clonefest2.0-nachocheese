@@ -13,6 +13,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { hashSha256 } from '../crypto/webcrypto';
+import { TerminalWindow } from './TerminalWindow';
 
 interface CreatorAdminModalProps {
   pasteId: string;
@@ -115,8 +116,10 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-2xl glass-panel-glow p-6 sm:p-8 rounded-3xl border border-emerald-500/30 text-slate-100 shadow-2xl space-y-6">
-        
+      <div className="relative w-full max-w-2xl">
+      <TerminalWindow path="anonymous@cipherdrop — admin" glow>
+      <div className="relative text-slate-100 space-y-6 p-6 sm:p-8">
+
         {/* Close button */}
         <button
           onClick={onClose}
@@ -132,7 +135,7 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
               <SlidersHorizontal className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <h2 className="font-mono text-lg font-bold text-slate-100 flex items-center gap-2">
                 Creator Admin Dashboard
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   Live Telemetry
@@ -287,6 +290,8 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
           </button>
         </div>
 
+      </div>
+      </TerminalWindow>
       </div>
     </div>
   );

@@ -11,6 +11,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    watch: {
+      // SQLite WAL files under data/ mutate on every request; without this,
+      // Vite's watcher treats each write as a source change and force-reloads
+      // the page, wiping in-progress UI state (e.g. the just-created share link).
+      ignored: ['**/data/**'],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

@@ -23,6 +23,7 @@ import {
 } from '../crypto/steganography';
 import { DecryptedSecret } from '../types';
 import { FeatureHighlights } from './FeatureHighlights';
+import { TerminalWindow } from './TerminalWindow';
 
 export const StegoTool: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'embed' | 'extract'>('embed');
@@ -154,13 +155,14 @@ export const StegoTool: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       
       {/* Intro Header */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <TerminalWindow path="anonymous@cipherdrop — stego" glow>
+      <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             <ImageIcon className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <h2 className="font-mono text-base font-bold text-slate-100 flex items-center gap-2">
               Steganography Disguise Carrier
               <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 Deep Packet Inspection Bypass
@@ -192,13 +194,15 @@ export const StegoTool: React.FC = () => {
           </button>
         </div>
       </div>
+      </TerminalWindow>
 
       {/* EMBED MODE */}
       {activeSubTab === 'embed' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
           {/* Left: Input secret & image */}
-          <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
+          <TerminalWindow path="anonymous@cipherdrop — stego/embed" stagger={1}>
+          <div className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
                 Confidential Secret to Hide
@@ -206,7 +210,7 @@ export const StegoTool: React.FC = () => {
               <textarea
                 value={embedText}
                 onChange={(e) => setEmbedText(e.target.value)}
-                placeholder="Enter sensitive keys, passwords, or code snippets..."
+                placeholder="Enter sensitive keys, passwords, or code snippets…"
                 rows={5}
                 className="w-full glass-input p-3 rounded-xl text-xs font-mono text-emerald-200 resize-none focus:outline-none"
               />
@@ -276,9 +280,11 @@ export const StegoTool: React.FC = () => {
               )}
             </button>
           </div>
+          </TerminalWindow>
 
           {/* Right: Output Result */}
-          <div className="glass-panel p-6 rounded-3xl border border-white/10 flex flex-col justify-between space-y-4">
+          <TerminalWindow path="anonymous@cipherdrop — stego/output" stagger={2} className="flex flex-col h-full">
+          <div className="p-6 flex flex-col justify-between flex-1 space-y-4">
             {embedResultBlobUrl ? (
               <div className="space-y-4">
                 <div className="text-center space-y-2">
@@ -338,12 +344,15 @@ export const StegoTool: React.FC = () => {
               </div>
             )}
           </div>
+          </TerminalWindow>
 
         </div>
       ) : (
         /* EXTRACT MODE */
-        <div className="max-w-xl mx-auto glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-6">
-          
+        <div className="max-w-xl mx-auto">
+        <TerminalWindow path="anonymous@cipherdrop — stego/extract">
+        <div className="p-6 sm:p-8 space-y-6">
+
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
@@ -382,7 +391,7 @@ export const StegoTool: React.FC = () => {
                 type="text"
                 value={extractKey}
                 onChange={(e) => setExtractKey(e.target.value)}
-                placeholder="Enter Base58 Master Key..."
+                placeholder="Enter Base58 Master Key…"
                 className="w-full glass-input px-3 py-2 rounded-xl text-xs font-mono text-emerald-200 focus:outline-none"
               />
             </div>
@@ -424,6 +433,8 @@ export const StegoTool: React.FC = () => {
             </div>
           )}
 
+        </div>
+        </TerminalWindow>
         </div>
       )}
 

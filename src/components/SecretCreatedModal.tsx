@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CreatedSecretResult, RecipientLinkInfo } from '../types';
+import { TerminalWindow } from './TerminalWindow';
 
 interface SecretCreatedModalProps {
   data: CreatedSecretResult;
@@ -93,8 +94,10 @@ export const SecretCreatedModal: React.FC<SecretCreatedModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
-      <div className="relative w-full max-w-3xl glass-panel-glow p-6 sm:p-8 rounded-3xl border border-emerald-500/30 text-slate-100 shadow-2xl space-y-6 my-8">
-        
+      <div className="relative w-full max-w-3xl my-8">
+      <TerminalWindow path="anonymous@cipherdrop — secret-created" glow>
+      <div className="relative text-slate-100 space-y-6 p-6 sm:p-8">
+
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -109,7 +112,7 @@ export const SecretCreatedModal: React.FC<SecretCreatedModalProps> = ({
             {isMulti ? <Users className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />}
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <h2 className="font-mono text-xl font-bold text-slate-100 flex items-center gap-2">
               {isMulti ? 'Multi-Recipient Envelopes Generated' : 'Secret Encrypted & Stored'}
               <Sparkles className="w-4 h-4 text-emerald-400" />
             </h2>
@@ -386,6 +389,8 @@ export const SecretCreatedModal: React.FC<SecretCreatedModalProps> = ({
           )}
         </div>
 
+      </div>
+      </TerminalWindow>
       </div>
     </div>
   );

@@ -27,7 +27,7 @@ export const FeatureHighlights: React.FC<FeatureHighlightsProps> = ({ cards, tit
             <div className="feature-card-icon">
               {card.icon}
             </div>
-            <h4 className="text-sm font-semibold text-slate-200 mb-1">{card.title}</h4>
+            <h4 className="text-sm font-mono font-semibold text-slate-200 mb-1">{card.title}</h4>
             <p className="text-xs text-slate-500 leading-relaxed">{card.description}</p>
           </div>
         ))}

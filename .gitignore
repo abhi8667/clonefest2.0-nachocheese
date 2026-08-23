@@ -20,3 +20,6 @@ playwright/.cache/
 
 # Editor / OS
 .DS_Store
+
+# Leftover git plumbing from history rewrites
+.git-rewrite/

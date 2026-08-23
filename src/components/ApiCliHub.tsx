@@ -6,9 +6,10 @@ import {
   Check, 
   BookOpen, 
   ShieldCheck, 
-  Globe, 
+  Globe,
   Layers
 } from 'lucide-react';
+import { TerminalWindow } from './TerminalWindow';
 
 const SNIPPETS = {
   curl: `# 1. Post pre-encrypted AES-256-GCM ciphertext (with optional Time-Lock)
@@ -150,13 +151,14 @@ export const ApiCliHub: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       
       {/* Intro */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <TerminalWindow path="anonymous@cipherdrop — api-docs" glow>
+      <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             <Terminal className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <h2 className="font-mono text-base font-bold text-slate-100 flex items-center gap-2">
               Developer API & CLI Hub
               <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 REST & WebSockets
@@ -168,10 +170,11 @@ export const ApiCliHub: React.FC = () => {
           </div>
         </div>
       </div>
+      </TerminalWindow>
 
       {/* Code Snippets Box */}
-      <div className="glass-panel rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-        
+      <TerminalWindow path={`anonymous@cipherdrop — snippet.${activeLang}`} glow className="shadow-2xl">
+
         {/* Languages Tabs */}
         <div className="flex items-center justify-between px-6 py-3 bg-obsidian-950 border-b border-white/5">
           <div className="flex items-center gap-1">
@@ -203,10 +206,11 @@ export const ApiCliHub: React.FC = () => {
         <pre className="p-6 bg-obsidian-950/80 font-mono text-xs text-emerald-200 overflow-x-auto leading-relaxed selection:bg-emerald-500/40">
           <code>{SNIPPETS[activeLang]}</code>
         </pre>
-      </div>
+      </TerminalWindow>
 
       {/* REST API Endpoints Table */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4 shadow-xl">
+      <TerminalWindow path="anonymous@cipherdrop — man api" glow className="shadow-xl">
+      <div className="p-6 space-y-4">
         <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">
           Core REST API Reference
         </h3>
@@ -256,6 +260,7 @@ export const ApiCliHub: React.FC = () => {
           </table>
         </div>
       </div>
+      </TerminalWindow>
 
     </div>
   );

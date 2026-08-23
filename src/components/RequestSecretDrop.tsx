@@ -22,6 +22,7 @@ import {
 } from '../crypto/webcrypto';
 import { InboundDrop, DecryptedSecret } from '../types';
 import { FeatureHighlights } from './FeatureHighlights';
+import { TerminalWindow } from './TerminalWindow';
 
 interface RequestSecretDropProps {
   initialDropId?: string;
@@ -164,14 +165,15 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
   if (isSubmitter) {
     return (
       <div className="max-w-xl mx-auto space-y-6">
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-emerald-500/30 shadow-2xl space-y-6">
-          
+        <TerminalWindow path="anonymous@cipherdrop — inbound-drop" glow className="shadow-2xl">
+        <div className="p-6 sm:p-8 space-y-6">
+
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
               <Lock className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-100">Secure Inbound Secret Drop</h2>
+              <h2 className="font-mono text-lg font-bold text-slate-100">Secure Inbound Secret Drop</h2>
               <p className="text-xs text-slate-400 font-mono">Zero-Knowledge Public-Key Encryption</p>
             </div>
           </div>
@@ -200,7 +202,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
                 <textarea
                   value={submitterText}
                   onChange={(e) => setSubmitterText(e.target.value)}
-                  placeholder="Paste requested keys, tokens, or credentials here..."
+                  placeholder="Paste requested keys, tokens, or credentials here…"
                   rows={6}
                   className="w-full glass-input p-3 rounded-xl text-xs font-mono text-emerald-200 placeholder:text-slate-600 focus:outline-none resize-none"
                 />
@@ -234,6 +236,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
           )}
 
         </div>
+        </TerminalWindow>
       </div>
     );
   }
@@ -243,15 +246,16 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
   // ----------------------------------------------------
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      
+
       {/* Intro Banner */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <TerminalWindow path="anonymous@cipherdrop — request-drop" glow>
+      <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             <Inbox className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <h2 className="font-mono text-base font-bold text-slate-100 flex items-center gap-2">
               Request-a-Secret DropBox
               <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 Inbound Zero-Knowledge
@@ -263,10 +267,12 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
           </div>
         </div>
       </div>
+      </TerminalWindow>
 
       {!createdDrop ? (
         /* Create Drop Form */
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-6">
+        <TerminalWindow path="anonymous@cipherdrop — request-drop --new">
+        <div className="p-6 sm:p-8 space-y-6">
           <form onSubmit={handleCreateDropLink} className="space-y-4">
             <div>
               <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
@@ -275,7 +281,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g. Please share the production AWS S3 credentials and database URI..."
+                placeholder="e.g. Please share the production AWS S3 credentials and database URI…"
                 rows={3}
                 className="w-full glass-input p-3 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none resize-none"
               />
@@ -312,12 +318,14 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
             </button>
           </form>
         </div>
+        </TerminalWindow>
       ) : (
         /* Drop Created & Listening State */
         <div className="space-y-6">
-          
+
           {/* Link Share Box */}
-          <div className="glass-panel p-6 rounded-3xl border border-emerald-500/30 space-y-4 shadow-xl">
+          <TerminalWindow path="anonymous@cipherdrop — request-drop --listening" accent="emerald" glow className="shadow-xl">
+          <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">
                 Share this Inbound Drop Link
@@ -349,10 +357,12 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
               </button>
             </div>
           </div>
+          </TerminalWindow>
 
           {/* Received Secret View */}
           {receivedSecret ? (
-            <div className="glass-panel p-6 rounded-3xl border border-emerald-500/40 space-y-4 bg-emerald-950/10">
+            <TerminalWindow path="anonymous@cipherdrop — request-drop --received" accent="emerald" glow>
+            <div className="p-6 space-y-4">
               <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-sm">
                 <Unlock className="w-5 h-5" />
                 <span>Inbound Secret Received & Decrypted!</span>
@@ -361,6 +371,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
                 <code>{receivedSecret.text}</code>
               </pre>
             </div>
+            </TerminalWindow>
           ) : (
             <div className="p-8 text-center glass-panel rounded-3xl border border-dashed border-white/10 space-y-3">
               <RefreshCw className="w-8 h-8 text-emerald-400 mx-auto animate-spin" />
