@@ -1,110 +1,119 @@
-# [![PrivateBin](https://raw.githubusercontent.com/PrivateBin/assets/master/images/preview/logoSmall.png)](https://privatebin.info/)
+# CipherDrop 🔐
+> **Next-Generation Zero-Knowledge Sovereign Secret Exchange Platform**
 
-*Current version: 2.0.5*
+CipherDrop is a modern, decentralized, zero-knowledge platform for sharing sensitive text, environment variables, credentials, private keys, and confidential files online. Built as an independent reimagining of PrivateBin, CipherDrop replaces legacy 2010s stacks with a high-performance, modern full-stack architecture (**React 18, TypeScript, Vite, Tailwind CSS, Node.js, WebSockets, SQLite WAL**) and brings breakthrough innovations like **Duress/Decoy Plausible Deniability**, **Inbound "Request-a-Secret" DropBoxes**, **Real-Time E2EE Ephemeral Incident War Rooms**, and **Steganography Disguise Carriers**.
 
-**PrivateBin** is a minimalist, open source online
-[pastebin](https://en.wikipedia.org/wiki/Pastebin)
-where the server has zero knowledge of stored data.
+---
 
-Data is encrypted and decrypted in the browser using 256bit AES in
-[Galois Counter mode](https://en.wikipedia.org/wiki/Galois/Counter_Mode).
+## 🌟 Key Features & Innovations
 
-This is a fork of ZeroBin, originally developed by
-[Sébastien Sauvage](https://github.com/sebsauvage/ZeroBin). PrivateBin was
-refactored to allow easier and cleaner extensions and has many additional
-features.
+### 1. 🛡️ Coercion Resistance (Duress / Decoy Mode)
+* Set a secondary **Duress Password** alongside your real password.
+* If forced to disclose your password under duress or coercion, entering the duress password seamlessly derives the secondary key and decrypts an innocent **Decoy Secret** with zero mathematical proof that a primary secret exists.
 
-## What PrivateBin provides
+### 2. 📥 Inbound "Request-a-Secret" DropBox
+* Need credentials from a non-technical client, vendor, or colleague? Generate a single-use inbound secret drop link.
+* Uses browser-generated **RSA-OAEP 2048-bit + AES-GCM hybrid asymmetric encryption**.
+* The submitter enters the credentials in their browser; their browser encrypts it with your public key before sending. Only your browser session with the private key can decrypt the submission!
 
-+ As a server administrator you don't have to worry if your users post content
-  that is considered illegal in your country. You have plausible deniability of
-  any of the pastes content. If requested or enforced, you can delete any paste
-  from your system.
+### 3. 🚨 Real-Time E2EE Ephemeral Incident War Room
+* Instant collaborative workspace for DevOps, SysAdmins, and SecOps responders handling live outages or credential rotation.
+* Features a live synchronized encrypted collaborative scratchpad and real-time incident chat over WebSockets.
+* Includes an **Emergency Nuke & Zeroize** button that immediately purges the room state across all connected peers.
 
-+ Pastebin-like system to store text documents, code samples, etc.
+### 4. 🖼️ Steganography Disguise Carrier (DPI Bypass)
+* Injects encrypted AES-256-GCM payloads into the Least Significant Bits (LSB) of PNG carrier image pixels.
+* Recipient can drag-and-drop the clean carrier image into CipherDrop and decrypt the hidden payload with their key.
 
-+ Encryption of data sent to server.
+### 5. 📝 Multi-Format Smart Secret Editors
+* **Multi-Language Code Editor**: Syntax highlighting with line numbers for 20+ languages (Python, JS, TS, Rust, Go, SQL, Bash, YAML, JSON, Dockerfile, etc.).
+* **Live Markdown Split View**: Real-time side-by-side formatted preview with tables and checklists.
+* **Structured `.ENV` Builder**: Specialized key-value credentials constructor with individual value masking and one-click copy buttons.
+* **Encrypted File Attachments**: Drag-and-drop any binary file (PDFs, images, documents, zips up to 15MB) with client-side chunk encryption.
 
-+ Possibility to set a password which is required to read the paste. It further
-  protects a paste and prevents people stumbling upon your paste's link
-  from being able to read it without the password.
+### 6. ⏳ Ephemeral Lifecycles & Guaranteed Destruction
+* **Granular Expirations**: Burn after 1 view, 5m, 15m, 1h, 1d, 7d, 30d, or persistent.
+* **Custom View Limits**: Restrict secrets to exactly 1, 2, 5, or 10 views before automatic destruction.
+* **Automated Background Janitor**: Server-side background worker automatically sweeps and purges expired secrets every 30 seconds.
+* **Encrypted Discussions**: Threaded replies where every comment is encrypted symmetrically before submission.
 
-## What it doesn't provide
+### 7. 🧰 Air-Gapped & Developer Tools
+* **Air-Gapped QR Code Handoff**: Scan encrypted secret URLs directly from phone cameras.
+* **Offline Cryptographic Sandbox**: Encrypt and decrypt text and files 100% offline without sending any network requests.
+* **Interactive API & CLI Hub**: Live code generators with copy-paste snippets in **cURL**, **JavaScript**, **Python**, **Go**, and **Rust**.
 
-- As a user you have to trust the server administrator not to inject any
-  malicious code. For security, a PrivateBin installation *has to be used over*
-  *HTTPS*! Otherwise you would also have to trust your internet provider, and
-  any jurisdiction the traffic passes through. Additionally the instance should
-  be secured by
-  [HSTS](https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security). It can
-  use traditional certificate authorities and/or use a
-  [DNSSEC](https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions)
-  protected
-  [DANE](https://en.wikipedia.org/wiki/DNS-based_Authentication_of_Named_Entities)
-  record.
+---
 
-- The “key” used to encrypt the paste is part of the URL (in
-  [the fragment part separated by the `#`](https://en.wikipedia.org/wiki/URL#fragment)).
-  If you publicly post the URL of a paste that is not password-protected, anyone
-  can read it.
-  Use a password if you want your paste to remain private. In that case, make
-  sure to use a strong password and share it privately and end-to-end-encrypted.
+## 🔐 Cryptographic Architecture
 
-- A server admin can be forced to hand over access logs to the authorities.
-  PrivateBin encrypts your text and the discussion contents, but who accessed a
-  paste (first) might still be disclosed via access logs.
+* **Symmetric Cipher**: AES-256-GCM (Galois/Counter Mode) with 128-bit authentication tag.
+* **Key Derivation**: PBKDF2-SHA256 with **600,000 iterations** (OWASP standard) + 128-bit random salt.
+* **Asymmetric Exchange**: RSA-OAEP 2048-bit with SHA-256 for inbound secret drops.
+* **Master Key Encoding**: Base58 (Bitcoin alphabet) preventing ambiguous characters (`0`, `O`, `I`, `l`).
+* **URL Hash Routing**: Decryption keys reside exclusively in the `#` fragment (`#p=<id>&k=<key>`), which RFC 3986 guarantees is never sent to the server in HTTP requests.
+* **Memory Hygiene**: Memory buffers holding key material are explicitly zeroized with PRNG random bytes upon unmount.
 
-- In case of a server breach your data is secure as it is only stored encrypted
-  on the server. However, the server could be abused or the server admin could
-  be legally forced into sending malicious code to their users, which logs
-  the decryption key and sends it to a server when a user accesses a paste.
-  Therefore, do not access any PrivateBin instance if you think it has been
-  compromised. As long as no user accesses this instance with a previously
-  generated URL, the content can't be decrypted.
+---
 
-## Options
+## 🚀 Getting Started
 
-Some features are optional and can be enabled or disabled in the [configuration
-file](https://github.com/PrivateBin/PrivateBin/wiki/Configuration):
+### Prerequisites
+* **Node.js** v18+ (tested on Node v22 / v24)
+* **npm** v9+
 
-* Password protection
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/<your-username>/<your-repo-name>.git
+cd <your-repo-name>
 
-* Discussions, anonymous or with nicknames and IP based identicons or vizhashes
+# Install dependencies
+npm install
+```
 
-* Expiration times, including a "forever" and "burn after reading" option
+### Development
+To run both the backend (Express + WebSockets) and frontend (Vite) concurrently:
+```bash
+npm run dev
+```
+* **Frontend**: `http://localhost:5173`
+* **Backend API & WebSockets Relay**: `http://localhost:3001`
 
-* Markdown format support for HTML formatted pastes, including preview function
+### Running Automated Tests
+```bash
+# Run unit tests
+npm test
 
-* Syntax highlighting for source code using prettify.js, including 4 prettify
-  themes
+# Run full end-to-end integration test suite
+node --test tests/e2e_integration.test.js
+```
 
-* File upload support, image, media and PDF preview (disabled by default, size
-  limit adjustable)
+### Production Build
+```bash
+# Compile TypeScript & bundle production assets
+npm run build
 
-* Templates: By default there are bootstrap5, bootstrap CSS and darkstrap
-  to choose from and it is easy to adapt these to your own websites layout or
-  create your own.
+# Start production server
+npm start
+```
 
-* Translation system and automatic browser language detection (if enabled in
-  browser)
+---
 
-* Language selection (disabled by default, as it uses a session cookie)
+## 📊 Comparison Matrix
 
-* QR code for paste URLs, to easily transfer them over to mobile devices
+| Capability | Legacy PrivateBin | CipherDrop |
+| :--- | :--- | :--- |
+| **Technology Stack** | PHP 7/8, jQuery, Bootstrap | **React 18, TypeScript, Vite, Tailwind CSS, Node.js, WebSockets, SQLite WAL** |
+| **Cryptography Core** | SJCL / early WebCrypto, 100k rounds | **WebCrypto AES-256-GCM, 600,000 PBKDF2 iterations** |
+| **Coercion Resistance** | ❌ None | **🛡️ Duress / Decoy Password Plausible Deniability** |
+| **Inbound Secret Intake** | ❌ None | **📥 Asymmetric RSA-OAEP "Request-a-Secret" DropBox** |
+| **Real-Time Collaboration**| ❌ None | **🚨 Live E2EE Ephemeral Incident War Room with Emergency Nuke** |
+| **DPI Bypass Disguise** | ❌ None | **🖼️ Steganography PNG Carrier (LSB Pixel Injection)** |
+| **Secret Formats** | Plaintext, Basic Code | **20+ Language Highlighting, Live Markdown, Structured .ENV, File Attachments** |
+| **Air-Gapped / Offline** | Partial | **📱 QR Code Handoff + 100% Offline Local Crypto Sandbox** |
+| **Developer Hub** | Basic API | **📖 Interactive Hub with cURL, JS, Python, Go, Rust code generators** |
 
-## Further resources
+---
 
-* [FAQ](https://github.com/PrivateBin/PrivateBin/wiki/FAQ)
-
-* [Installation guide](https://github.com/PrivateBin/PrivateBin/blob/master/doc/Installation.md#installation)
-
-* [Configuration guide](https://github.com/PrivateBin/PrivateBin/wiki/Configuration)
-
-* [Templates](https://github.com/PrivateBin/PrivateBin/wiki/Templates)
-
-* [Translation guide](https://github.com/PrivateBin/PrivateBin/wiki/Translation)
-
-* [Developer guide](https://github.com/PrivateBin/PrivateBin/wiki/Development)
-
-Run into any issues? Have ideas for further developments? Please
-[report](https://github.com/PrivateBin/PrivateBin/issues) them!
+## 📄 License
+This project is open-source under the **MIT License**.

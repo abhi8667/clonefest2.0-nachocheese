@@ -39,6 +39,10 @@ tst/.phpunit.result.cache
 .project
 .phpdoc
 .externalToolBuilders
-.c9
-/.idea/
-*.iml
+node_modules
+dist
+data/
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
