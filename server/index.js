@@ -70,10 +70,49 @@ app.post('/api/paste', (req, res) => {
       isMultiRecipient = false,
       envelopes = null,
       adminTokenHash = null,
+      timeLockEnabled = false,
+      unlockAt = null,
     } = req.body;
 
     if (!payload || !payload.ct || !payload.iv) {
       return res.status(400).json({ error: 'Invalid encrypted payload. Ciphertext and IV are required.' });
+    }
+
+    const isTimeLocked = Boolean(timeLockEnabled);
+    let unlockTimestampSec = null;
+
+    if (isTimeLocked) {
+      if (!unlockAt) {
+        return res.status(400).json({ error: 'unlockAt timestamp is required when timeLockEnabled is true.' });
+      }
+
+      // Parse unlockAt as date string or numeric timestamp
+      let parsedTimeMs;
+      if (typeof unlockAt === 'number') {
+        parsedTimeMs = unlockAt > 1e11 ? unlockAt : unlockAt * 1000;
+      } else if (typeof unlockAt === 'string') {
+        parsedTimeMs = Date.parse(unlockAt);
+      } else {
+        return res.status(400).json({ error: 'Invalid unlockAt format. Must be an ISO timestamp or date string.' });
+      }
+
+      if (isNaN(parsedTimeMs)) {
+        return res.status(400).json({ error: 'Invalid unlockAt date/time format.' });
+      }
+
+      unlockTimestampSec = Math.floor(parsedTimeMs / 1000);
+      const now = storage.getCurrentTime();
+
+      if (unlockTimestampSec <= now) {
+        return res.status(400).json({ error: 'unlockAt must be a future date and time.' });
+      }
+
+      const expireSec = Number(expireInSeconds);
+      const expireAt = expireSec === 0 ? 2147483647 : now + expireSec;
+
+      if (expireSec !== 0 && unlockTimestampSec >= expireAt) {
+        return res.status(400).json({ error: 'unlockAt must be earlier than the expiration time.' });
+      }
     }
 
     // Generate random 16-character hexadecimal ID & deletion token
@@ -89,12 +128,16 @@ app.post('/api/paste', (req, res) => {
       isMultiRecipient: Boolean(isMultiRecipient),
       envelopes,
       adminTokenHash,
+      timeLockEnabled: isTimeLocked,
+      unlockAt: unlockTimestampSec,
     });
 
     res.status(201).json({
       id: result.id,
       deleteToken: result.deleteToken,
       expireAt: result.expireAt,
+      timeLockEnabled: result.timeLockEnabled,
+      unlockAt: result.unlockAt ? new Date(result.unlockAt * 1000).toISOString() : null,
       status: 'created',
     });
   } catch (err) {
@@ -114,6 +157,17 @@ app.get('/api/paste/:id', (req, res) => {
 
     if (!paste) {
       return res.status(404).json({ error: 'Secret not found, expired, or already burned.' });
+    }
+
+    // If locked, return 423 Locked with lock metadata and NO ciphertext payload
+    if (paste.locked) {
+      return res.status(423).json({
+        error: 'TIME_LOCKED',
+        message: 'This secret is time-locked and cannot be decrypted yet.',
+        unlockAt: paste.unlockAt,
+        timeLockEnabled: true,
+        expireAt: paste.expireAt,
+      });
     }
 
     if (paste.error) {
@@ -303,6 +357,27 @@ app.get('/api/health', (req, res) => {
     engine: 'CipherDrop v2.0-ZeroKnowledge',
   });
 });
+
+// Test endpoints to fast-forward server time for deterministic testing (Disabled in production)
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/api/test/set-time-offset', (req, res) => {
+    const { offsetSeconds = 0 } = req.body;
+    storage.setTimeOffset(Number(offsetSeconds));
+    res.json({
+      success: true,
+      currentTime: storage.getCurrentTime(),
+      offsetSeconds: Number(offsetSeconds),
+    });
+  });
+
+  app.post('/api/test/reset-time', (req, res) => {
+    storage.resetTimeOffset();
+    res.json({
+      success: true,
+      currentTime: storage.getCurrentTime(),
+    });
+  });
+}
 
 // ----------------------------------------------------
 // WEBSOCKET BLIND RELAY FOR REAL-TIME INCIDENT ROOMS

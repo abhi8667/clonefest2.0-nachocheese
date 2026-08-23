@@ -20,6 +20,7 @@ const DB_PATH = path.join(DATA_DIR, 'cipherdrop.db');
 
 export class StorageEngine {
   constructor() {
+    this._timeOffset = 0; // For deterministic time testing
     try {
       this.db = new Database(DB_PATH);
       this.db.pragma('journal_mode = WAL');
@@ -35,6 +36,18 @@ export class StorageEngine {
     this._initTables();
   }
 
+  getCurrentTime() {
+    return Math.floor(Date.now() / 1000) + this._timeOffset;
+  }
+
+  setTimeOffset(seconds) {
+    this._timeOffset = Number(seconds) || 0;
+  }
+
+  resetTimeOffset() {
+    this._timeOffset = 0;
+  }
+
   _initTables() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS pastes (
@@ -48,7 +61,9 @@ export class StorageEngine {
         created_at INTEGER NOT NULL,
         is_multi_recipient INTEGER DEFAULT 0,
         envelopes TEXT,
-        admin_token_hash TEXT
+        admin_token_hash TEXT,
+        time_lock_enabled INTEGER DEFAULT 0,
+        unlock_at INTEGER
       );
 
       CREATE TABLE IF NOT EXISTS comments (
@@ -69,16 +84,21 @@ export class StorageEngine {
         expire_at INTEGER NOT NULL,
         created_at INTEGER NOT NULL
       );
-
-      CREATE INDEX IF NOT EXISTS idx_pastes_expire ON pastes(expire_at);
-      CREATE INDEX IF NOT EXISTS idx_comments_paste ON comments(paste_id);
-      CREATE INDEX IF NOT EXISTS idx_drops_expire ON inbound_drops(expire_at);
     `);
 
     // Ensure backwards compatibility with any existing DB without recreating
     try { this.db.exec(`ALTER TABLE pastes ADD COLUMN is_multi_recipient INTEGER DEFAULT 0;`); } catch (_) {}
     try { this.db.exec(`ALTER TABLE pastes ADD COLUMN envelopes TEXT;`); } catch (_) {}
     try { this.db.exec(`ALTER TABLE pastes ADD COLUMN admin_token_hash TEXT;`); } catch (_) {}
+    try { this.db.exec(`ALTER TABLE pastes ADD COLUMN time_lock_enabled INTEGER DEFAULT 0;`); } catch (_) {}
+    try { this.db.exec(`ALTER TABLE pastes ADD COLUMN unlock_at INTEGER;`); } catch (_) {}
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_pastes_expire ON pastes(expire_at);
+      CREATE INDEX IF NOT EXISTS idx_pastes_unlock ON pastes(unlock_at);
+      CREATE INDEX IF NOT EXISTS idx_comments_paste ON comments(paste_id);
+      CREATE INDEX IF NOT EXISTS idx_drops_expire ON inbound_drops(expire_at);
+    `);
   }
 
   /**
@@ -94,18 +114,22 @@ export class StorageEngine {
       isMultiRecipient = false,
       envelopes = null,
       adminTokenHash = null,
+      timeLockEnabled = false,
+      unlockAt = null,
     } = options;
 
-    const now = Math.floor(Date.now() / 1000);
+    const now = this.getCurrentTime();
     const expireAt = expireInSeconds === 0 ? 2147483647 : now + expireInSeconds;
     const viewsRemaining = burnAfterReading ? 1 : maxViews;
+    const isTimeLocked = Boolean(timeLockEnabled);
+    const unlockTimestamp = isTimeLocked && unlockAt ? Number(unlockAt) : null;
 
     const stmt = this.db.prepare(`
       INSERT INTO pastes (
         id, payload, expire_at, burn_after_reading, views_remaining, open_discussion, delete_token, created_at,
-        is_multi_recipient, envelopes, admin_token_hash
+        is_multi_recipient, envelopes, admin_token_hash, time_lock_enabled, unlock_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -119,18 +143,27 @@ export class StorageEngine {
       now,
       isMultiRecipient ? 1 : 0,
       envelopes ? (typeof envelopes === 'string' ? envelopes : JSON.stringify(envelopes)) : null,
-      adminTokenHash || null
+      adminTokenHash || null,
+      isTimeLocked ? 1 : 0,
+      unlockTimestamp
     );
 
-    return { id, expireAt, deleteToken };
+    return {
+      id,
+      expireAt,
+      deleteToken,
+      timeLockEnabled: isTimeLocked,
+      unlockAt: unlockTimestamp,
+    };
   }
 
   /**
    * Read paste atomically. Decrements view count and burns if exhausted.
    * If slotId is provided on multi-recipient paste, updates/burns specific recipient envelope.
+   * If time-locked and unlockAt is in the future, returns 423 Locked and does not reveal ciphertext or decrement views.
    */
   getPaste(id, slotId = null) {
-    const now = Math.floor(Date.now() / 1000);
+    const now = this.getCurrentTime();
 
     const tx = this.db.transaction(() => {
       const stmt = this.db.prepare(`SELECT * FROM pastes WHERE id = ?`);
@@ -138,10 +171,22 @@ export class StorageEngine {
 
       if (!paste) return null;
 
-      // Check time expiry
+      // Check time expiry (expired secrets are purged immediately)
       if (paste.expire_at <= now) {
         this.deletePaste(id);
         return null;
+      }
+
+      // Check Time-Lock enforcement gate (Server-Assisted Release)
+      if (paste.time_lock_enabled === 1 && paste.unlock_at && paste.unlock_at > now) {
+        return {
+          locked: true,
+          status: 423,
+          error: 'TIME_LOCKED',
+          timeLockEnabled: true,
+          unlockAt: new Date(paste.unlock_at * 1000).toISOString(),
+          expireAt: paste.expire_at,
+        };
       }
 
       let shouldDelete = false;
@@ -226,6 +271,8 @@ export class StorageEngine {
         comments,
         wasBurned: shouldDelete,
         createdAt: paste.created_at,
+        timeLockEnabled: paste.time_lock_enabled === 1,
+        unlockAt: paste.unlock_at ? new Date(paste.unlock_at * 1000).toISOString() : null,
       };
     });
 
@@ -250,6 +297,8 @@ export class StorageEngine {
       expireAt: paste.expire_at,
       burnAfterReading: paste.burn_after_reading === 1,
       createdAt: paste.created_at,
+      timeLockEnabled: paste.time_lock_enabled === 1,
+      unlockAt: paste.unlock_at ? new Date(paste.unlock_at * 1000).toISOString() : null,
       envelopes: envelopes.map(e => ({
         slotId: e.slotId,
         label: e.label,
@@ -320,7 +369,7 @@ export class StorageEngine {
     if (!paste) throw new Error('Paste does not exist');
     if (paste.open_discussion !== 1) throw new Error('Discussions are not enabled on this paste');
 
-    const now = Math.floor(Date.now() / 1000);
+    const now = this.getCurrentTime();
     const stmt = this.db.prepare(`
       INSERT INTO comments (id, paste_id, parent_id, payload, created_at)
       VALUES (?, ?, ?, ?, ?)
@@ -341,7 +390,7 @@ export class StorageEngine {
    * Create an inbound Request-a-Secret drop link
    */
   createInboundDrop(id, prompt, publicKey, expireInSeconds = 86400) {
-    const now = Math.floor(Date.now() / 1000);
+    const now = this.getCurrentTime();
     const expireAt = now + expireInSeconds;
 
     const stmt = this.db.prepare(`
@@ -357,7 +406,7 @@ export class StorageEngine {
    * Get an inbound drop metadata
    */
   getInboundDrop(id) {
-    const now = Math.floor(Date.now() / 1000);
+    const now = this.getCurrentTime();
     const drop = this.db.prepare(`SELECT * FROM inbound_drops WHERE id = ?`).get(id);
 
     if (!drop) return null;
@@ -399,7 +448,7 @@ export class StorageEngine {
    * Periodic Janitor: Sweep expired pastes and drops
    */
   sweepExpired() {
-    const now = Math.floor(Date.now() / 1000);
+    const now = this.getCurrentTime();
 
     const expiredPastes = this.db.prepare(`SELECT id FROM pastes WHERE expire_at <= ?`).all(now);
     if (expiredPastes.length > 0) {

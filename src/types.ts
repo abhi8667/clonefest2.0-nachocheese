@@ -59,6 +59,8 @@ export interface MultiRecipientCreatedResult {
   adminUrl: string;
   deleteToken: string;
   expireAt: number;
+  timeLockEnabled?: boolean;
+  unlockAt?: string | null;
   recipientLinks: RecipientLinkInfo[];
 }
 
@@ -69,6 +71,8 @@ export interface StandardCreatedResult {
   deleteToken: string;
   expireAt: number;
   burnAfterReading: boolean;
+  timeLockEnabled?: boolean;
+  unlockAt?: string | null;
 }
 
 export type CreatedSecretResult = StandardCreatedResult | MultiRecipientCreatedResult;
@@ -100,6 +104,8 @@ export interface PasteResponse {
   comments: StoredComment[];
   wasBurned: boolean;
   createdAt: number;
+  timeLockEnabled?: boolean;
+  unlockAt?: string | null;
 }
 
 export interface InboundDrop {

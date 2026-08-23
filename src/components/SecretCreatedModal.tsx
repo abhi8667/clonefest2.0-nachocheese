@@ -121,6 +121,34 @@ export const SecretCreatedModal: React.FC<SecretCreatedModalProps> = ({
           </div>
         </div>
 
+        {/* Time-Lock Notice (if enabled) */}
+        {data.timeLockEnabled && data.unlockAt && (
+          <div className="p-4 bg-amber-950/30 rounded-2xl border border-amber-500/40 text-xs space-y-2.5 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-300 font-bold font-mono">
+                <Lock className="w-4 h-4 text-amber-400" />
+                <span>🔒 Time-Locked Secret Active</span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
+                Server-Assisted Gate
+              </span>
+            </div>
+            <p className="text-slate-300 text-xs leading-relaxed">
+              This secret cannot be opened or decrypted yet. The CipherDrop server will reject requests with <code className="text-amber-300 font-mono">HTTP 423 Locked</code> until the unlock time passes.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+              <div className="p-2.5 bg-obsidian-950 rounded-xl border border-white/5">
+                <span className="text-slate-500 block text-[10px]">UNLOCK DATE & TIME (UTC)</span>
+                <span className="text-amber-300 font-semibold">{new Date(data.unlockAt).toUTCString()}</span>
+              </div>
+              <div className="p-2.5 bg-obsidian-950 rounded-xl border border-white/5">
+                <span className="text-slate-500 block text-[10px]">YOUR LOCAL TIME</span>
+                <span className="text-slate-200">{new Date(data.unlockAt).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Standard Single Link Display */}
         {!isMulti && (
           <div className="space-y-2">

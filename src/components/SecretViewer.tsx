@@ -55,6 +55,12 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   const [decryptError, setDecryptError] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState<boolean>(false);
 
+  // Time-Lock State (Server-Assisted Release Gate)
+  const [isTimeLocked, setIsTimeLocked] = useState<boolean>(false);
+  const [timeLockUnlockAt, setTimeLockUnlockAt] = useState<string | null>(null);
+  const [timeLockCountdown, setTimeLockCountdown] = useState<number | null>(null);
+  const [isCheckingUnlock, setIsCheckingUnlock] = useState<boolean>(false);
+
   // UI state
   const [copiedText, setCopiedText] = useState<boolean>(false);
   const [copiedKeyIdx, setCopiedKeyIdx] = useState<number | null>(null);
@@ -74,94 +80,108 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
 
   // 1. Fetch ciphertext payload from server
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadPaste() {
-      try {
+  const loadPaste = async (showCheckingSpinner = false) => {
+    try {
+      if (showCheckingSpinner) {
+        setIsCheckingUnlock(true);
+      } else {
         setIsLoading(true);
-        setFetchError(null);
+      }
+      setFetchError(null);
 
-        const fetchUrl = slotId 
-          ? `/api/paste/${pasteId}?slot=${encodeURIComponent(slotId)}`
-          : `/api/paste/${pasteId}`;
+      const fetchUrl = slotId 
+        ? `/api/paste/${pasteId}?slot=${encodeURIComponent(slotId)}`
+        : `/api/paste/${pasteId}`;
 
-        const res = await fetch(fetchUrl);
-        const data = await res.json();
+      const res = await fetch(fetchUrl);
+      const data = await res.json();
 
-        if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error(data.error || 'This secret has expired, was revoked, or does not exist.');
+      if (!res.ok) {
+        if (res.status === 423 || data.error === 'TIME_LOCKED') {
+          setIsTimeLocked(true);
+          setTimeLockUnlockAt(data.unlockAt);
+          if (data.unlockAt) {
+            const diffSec = Math.floor((new Date(data.unlockAt).getTime() - Date.now()) / 1000);
+            setTimeLockCountdown(Math.max(0, diffSec));
           }
-          if (res.status === 410) {
-            throw new Error(data.error || 'This recipient link was already burned after its first read.');
-          }
-          throw new Error(data.error || `Failed to load secret (HTTP ${res.status}).`);
+          return;
         }
-
-        if (!isMounted) return;
-
-        setPasteData(data);
-        setComments(data.comments || []);
-
-        // Calculate TTL
-        const now = Math.floor(Date.now() / 1000);
-        if (data.expireAt) {
-          setTimeRemaining(Math.max(0, data.expireAt - now));
+        if (res.status === 404) {
+          throw new Error(data.error || 'This secret has expired, was revoked, or does not exist.');
         }
-
-        // Determine if multi-recipient envelope decryption is needed
-        if (data.isMultiRecipient) {
-          const envelope = data.activeSlot || data.envelopes?.find((e: RecipientEnvelopeSlot) => e.slotId === slotId);
-          if (!envelope) {
-            throw new Error('Could not identify a valid recipient envelope slot for this link.');
-          }
-          setActiveSlotInfo(envelope);
-
-          try {
-            // Attempt automatic unwrap & decrypt without password
-            const unwrappedKey = await unwrapRecipientEnvelope(envelope, masterKey);
-            const decrypted = await decryptSecret(data.payload, unwrappedKey);
-            if (isMounted) {
-              setEffectiveCEK(unwrappedKey);
-              setDecryptedSecret(decrypted);
-              decryptComments(data.comments || [], unwrappedKey);
-            }
-          } catch (err) {
-            // Password required for this slot or master payload
-            if (isMounted) {
-              setIsPasswordRequired(true);
-            }
-          }
-        } else {
-          // Standard single-link paste
-          setEffectiveCEK(masterKey);
-          try {
-            const decrypted = await decryptSecret(data.payload, masterKey);
-            if (isMounted) {
-              setDecryptedSecret(decrypted);
-              decryptComments(data.comments || [], masterKey);
-            }
-          } catch (err) {
-            if (isMounted) {
-              setIsPasswordRequired(true);
-            }
-          }
+        if (res.status === 410) {
+          throw new Error(data.error || 'This recipient link was already burned after its first read.');
         }
-      } catch (err: any) {
-        if (isMounted) {
-          setFetchError(err.message || 'Error loading secret.');
+        throw new Error(data.error || `Failed to load secret (HTTP ${res.status}).`);
+      }
+
+      // If we received a valid 200 payload, secret is unlocked
+      setIsTimeLocked(false);
+      setTimeLockUnlockAt(null);
+      setPasteData(data);
+      setComments(data.comments || []);
+
+      // Calculate TTL
+      const now = Math.floor(Date.now() / 1000);
+      if (data.expireAt) {
+        setTimeRemaining(Math.max(0, data.expireAt - now));
+      }
+
+      // Determine if multi-recipient envelope decryption is needed
+      if (data.isMultiRecipient) {
+        const envelope = data.activeSlot || data.envelopes?.find((e: RecipientEnvelopeSlot) => e.slotId === slotId);
+        if (!envelope) {
+          throw new Error('Could not identify a valid recipient envelope slot for this link.');
         }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
+        setActiveSlotInfo(envelope);
+
+        try {
+          // Attempt automatic unwrap & decrypt without password
+          const unwrappedKey = await unwrapRecipientEnvelope(envelope, masterKey);
+          const decrypted = await decryptSecret(data.payload, unwrappedKey);
+          setEffectiveCEK(unwrappedKey);
+          setDecryptedSecret(decrypted);
+          decryptComments(data.comments || [], unwrappedKey);
+        } catch (err) {
+          // Password required for this slot or master payload
+          setIsPasswordRequired(true);
+        }
+      } else {
+        // Standard single-link paste
+        setEffectiveCEK(masterKey);
+        try {
+          const decrypted = await decryptSecret(data.payload, masterKey);
+          setDecryptedSecret(decrypted);
+          decryptComments(data.comments || [], masterKey);
+        } catch (err) {
+          setIsPasswordRequired(true);
         }
       }
+    } catch (err: any) {
+      setFetchError(err.message || 'Error loading secret.');
+    } finally {
+      setIsLoading(false);
+      setIsCheckingUnlock(false);
     }
+  };
 
+  useEffect(() => {
     loadPaste();
-    return () => { isMounted = false; };
   }, [pasteId, masterKey, slotId]);
+
+  // Live Time-Lock Countdown Timer
+  useEffect(() => {
+    if (timeLockCountdown === null) return;
+    const interval = setInterval(() => {
+      setTimeLockCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timeLockCountdown !== null]);
 
   // Live Countdown Timer
   useEffect(() => {
@@ -335,6 +355,16 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     return `${m}m ${s}s`;
   };
 
+  const formatTimeLockCountdown = (sec: number) => {
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (d > 0) return `${d} days ${h} hours ${m} minutes ${s} seconds`;
+    if (h > 0) return `${h} hours ${m} minutes ${s} seconds`;
+    return `${m} minutes ${s} seconds`;
+  };
+
   // Parse ENV Key-Values for structured display
   const parsedEnvItems = () => {
     if (!decryptedSecret || decryptedSecret.formatter !== 'env') return [];
@@ -388,6 +418,99 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
         >
           Create New Secret
         </button>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------
+  // RENDER: Time-Locked Secret Gate Screen
+  // ----------------------------------------------------
+
+  if (isTimeLocked && !decryptedSecret) {
+    const isUnlockedNow = timeLockCountdown !== null && timeLockCountdown <= 0;
+    return (
+      <div className="max-w-xl mx-auto p-8 glass-panel-glow rounded-3xl border border-amber-500/30 text-center space-y-6 shadow-2xl animate-fadeIn">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+          {isUnlockedNow ? <Unlock className="w-8 h-8 text-emerald-400 animate-bounce" /> : <Lock className="w-8 h-8 text-amber-400" />}
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-slate-100 flex items-center justify-center gap-2">
+            {isUnlockedNow ? '🔓 Secret Ready for Decryption' : '🔒 Secret Locked'}
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            {isUnlockedNow
+              ? 'The configured release time has arrived! You can now request the encrypted ciphertext from the server and decrypt it client-side.'
+              : 'This secret is protected by a server-assisted time lock and cannot be opened yet.'}
+          </p>
+        </div>
+
+        {timeLockUnlockAt && (
+          <div className="p-4 bg-obsidian-950 rounded-2xl border border-white/10 space-y-3 text-xs font-mono">
+            <div className="space-y-1">
+              <span className="text-slate-500 block text-[10px] uppercase">Authoritative Unlock Time (UTC)</span>
+              <span className="text-amber-300 font-bold text-sm">{new Date(timeLockUnlockAt).toUTCString()}</span>
+            </div>
+
+            <div className="space-y-1 pt-1 border-t border-white/5">
+              <span className="text-slate-500 block text-[10px] uppercase">Your Local Time</span>
+              <span className="text-slate-200">{new Date(timeLockUnlockAt).toLocaleString()}</span>
+            </div>
+
+            {!isUnlockedNow && timeLockCountdown !== null && (
+              <div className="p-3 bg-amber-950/30 rounded-xl border border-amber-500/20 space-y-1">
+                <span className="text-amber-400 block text-[10px] font-bold uppercase">Time Remaining</span>
+                <span className="text-amber-200 font-bold text-base tracking-wider block">
+                  {formatTimeLockCountdown(timeLockCountdown)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="p-3 bg-obsidian-950 rounded-xl text-xs font-mono text-slate-400 border border-white/5 text-left space-y-1">
+          <p className="text-slate-300 font-semibold flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            Zero-Knowledge Server-Side Release Gate
+          </p>
+          <p className="text-[11px] text-slate-500">
+            The server strictly gates release using its authoritative clock. Bypassing or modifying client-side clocks will still result in HTTP 423 Locked.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-obsidian-900 border border-white/10"
+          >
+            Back
+          </button>
+
+          <button
+            type="button"
+            disabled={isCheckingUnlock}
+            onClick={() => loadPaste(true)}
+            className="btn-cyber-primary flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
+          >
+            {isCheckingUnlock ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                <span>Verifying Server Clock...</span>
+              </>
+            ) : isUnlockedNow ? (
+              <>
+                <Unlock className="w-4 h-4" />
+                <span>Decrypt Secret Now</span>
+              </>
+            ) : (
+              <>
+                <Clock className="w-4 h-4" />
+                <span>Check Unlock Status</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     );
   }
