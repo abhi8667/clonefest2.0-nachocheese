@@ -455,18 +455,19 @@ wss.on('connection', (ws, req) => {
 // ----------------------------------------------------
 // JANITOR BACKGROUND WORKER (Runs every 30 seconds)
 // ----------------------------------------------------
-setInterval(() => {
+const janitorInterval = setInterval(() => {
   try {
     storage.sweepExpired();
   } catch (err) {
     console.error('[Janitor Error]', err);
   }
 }, 30000);
+janitorInterval.unref();
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 =================================================`);
-  console.log(`   CipherDrop Sovereign Server running on http://localhost:${PORT}`);
-  console.log(`   WebSocket Blind Relay active at ws://localhost:${PORT}/ws/incident-room`);
+  console.log(`   CipherDrop Sovereign Server running on http://127.0.0.1:${PORT}`);
+  console.log(`   WebSocket Blind Relay active at ws://127.0.0.1:${PORT}/ws/incident-room`);
   console.log(`   Zero-Knowledge Mode: ACTIVE (Server never receives keys)`);
   console.log(`=================================================\n`);
 });

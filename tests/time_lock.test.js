@@ -18,14 +18,18 @@ import {
 } from '../src/crypto/webcrypto.ts';
 
 const PORT = process.env.TEST_PORT_TIMELOCK || '3012';
-const BASE_URL = `http://localhost:${PORT}`;
+const BASE_URL = `http://127.0.0.1:${PORT}`;
 let serverProcess = null;
+let serverErrOutput = '';
 
 before(async () => {
   serverProcess = spawn('node', ['server/index.js'], {
-    stdio: 'inherit',
+    stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, PORT: String(PORT), NODE_ENV: 'test', ENABLE_TEST_ENDPOINTS: '1', DB_PATH: ':memory:' },
   });
+
+  serverProcess.stderr.on('data', (d) => { serverErrOutput += d.toString(); });
+  serverProcess.stdout.on('data', (d) => { /* suppress banner in test */ });
 
   // Wait for server to become responsive
   let ready = false;
@@ -40,7 +44,7 @@ before(async () => {
     } catch (err) {}
   }
   if (!ready) {
-    throw new Error('Test server failed to start within timeout in time_lock.test.js');
+    throw new Error(`Test server failed to start within timeout in time_lock.test.js. Stderr: ${serverErrOutput}`);
   }
 });
 
