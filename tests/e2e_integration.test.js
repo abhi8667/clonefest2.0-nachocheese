@@ -19,21 +19,14 @@ import {
   hashSha256,
 } from '../src/crypto/webcrypto.ts';
 
-const BASE_URL = 'http://localhost:3001';
+const PORT = process.env.TEST_PORT_E2E || '3011';
+const BASE_URL = `http://localhost:${PORT}`;
 let serverProcess = null;
 
 before(async () => {
-  // Check if server is already running
-  try {
-    const res = await fetch(`${BASE_URL}/api/health`);
-    if (res.ok) return;
-  } catch (e) {
-    // Server not running, spawn it
-  }
-
   serverProcess = spawn('node', ['server/index.js'], {
-    stdio: 'inherit',
-    env: { ...process.env, PORT: '3001', NODE_ENV: 'test' },
+    stdio: 'pipe',
+    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'test', ENABLE_TEST_ENDPOINTS: '1' },
   });
 
   // Wait for server to become responsive
@@ -49,13 +42,14 @@ before(async () => {
     } catch (err) {}
   }
   if (!ready) {
-    throw new Error('Test server failed to start within timeout');
+    throw new Error('Test server failed to start within timeout in e2e_integration.test.js');
   }
 });
 
-after(() => {
+after(async () => {
   if (serverProcess) {
     serverProcess.kill('SIGTERM');
+    await new Promise((r) => setTimeout(r, 200));
   }
 });
 
@@ -272,7 +266,7 @@ test('E2E: Real-Time WebSocket E2EE Incident War Room Blind Relay', async () => 
   const roomId = 'room-' + Math.random().toString(36).substring(2, 8);
   const roomKey = generateMasterKey();
 
-  const wsUrl = `ws://localhost:3001/ws/incident-room?room=${roomId}`;
+  const wsUrl = `ws://localhost:${PORT}/ws/incident-room?room=${roomId}`;
   const client1 = new WebSocket(wsUrl);
   const client2 = new WebSocket(wsUrl);
 

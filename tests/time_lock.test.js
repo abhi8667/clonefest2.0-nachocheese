@@ -17,38 +17,37 @@ import {
   hashSha256,
 } from '../src/crypto/webcrypto.ts';
 
-const BASE_URL = 'http://localhost:3001';
+const PORT = process.env.TEST_PORT_TIMELOCK || '3012';
+const BASE_URL = `http://localhost:${PORT}`;
 let serverProcess = null;
 
 before(async () => {
-  // Check if server is already running
-  let isRunning = false;
-  try {
-    const res = await fetch(`${BASE_URL}/api/health`);
-    if (res.ok) isRunning = true;
-  } catch (e) {}
+  serverProcess = spawn('node', ['server/index.js'], {
+    stdio: 'pipe',
+    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'test', ENABLE_TEST_ENDPOINTS: '1' },
+  });
 
-  if (!isRunning) {
-    serverProcess = spawn('node', ['server/index.js'], {
-      stdio: 'inherit',
-      env: { ...process.env, PORT: '3001', NODE_ENV: 'test', ENABLE_TEST_ENDPOINTS: '1' },
-    });
+  // Wait for server to become responsive
+  let ready = false;
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    try {
+      const res = await fetch(`${BASE_URL}/api/health`);
+      if (res.ok) {
+        ready = true;
+        break;
+      }
+    } catch (err) {}
+  }
+  if (!ready) {
+    throw new Error('Test server failed to start within timeout in time_lock.test.js');
+  }
+});
 
-    // Wait for server to become responsive
-    let ready = false;
-    for (let i = 0; i < 60; i++) {
-      await new Promise((r) => setTimeout(r, 200));
-      try {
-        const res = await fetch(`${BASE_URL}/api/health`);
-        if (res.ok) {
-          ready = true;
-          break;
-        }
-      } catch (err) {}
-    }
-    if (!ready) {
-      throw new Error('Test server failed to start within timeout in time_lock.test.js');
-    }
+after(async () => {
+  if (serverProcess) {
+    serverProcess.kill('SIGTERM');
+    await new Promise((r) => setTimeout(r, 200));
   }
 });
 
