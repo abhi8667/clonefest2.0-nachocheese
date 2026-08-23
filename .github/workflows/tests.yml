@@ -15,8 +15,9 @@ jobs:
     name: Node.js ${{ matrix.node-version }} Test & Build
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [20.x, 22.x]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
