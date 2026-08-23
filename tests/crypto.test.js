@@ -12,6 +12,9 @@ import {
   generateAsymmetricDropKeys,
   encryptInboundDrop,
   decryptInboundDrop,
+  encryptMultiRecipientSecret,
+  unwrapRecipientEnvelope,
+  decryptMultiRecipientSecret,
   bytesToBase58,
   base58ToBytes,
   bytesToBase64Url,
@@ -146,3 +149,68 @@ test('Memory Zeroization Hygiene', () => {
   zeroize(sensitiveBuffer);
   assert.ok(sensitiveBuffer.every(byte => byte === 0), 'Buffer should be completely zeroed out');
 });
+
+test('Multi-Recipient Envelope Encryption (N Recipients with Isolated Keys)', async () => {
+  const secretPayload = {
+    text: 'DATABASE_PASSWORD=multi_recipient_super_secret_password_2026',
+    formatter: 'env',
+    commentsAllowed: true,
+  };
+
+  const recipients = [
+    { label: 'Alice', burnOnRead: true },
+    { label: 'Bob', burnOnRead: false },
+    { label: 'Charlie (Passphrase Protected)', burnOnRead: true, password: 'CharlieSecretPassphrase#42' },
+  ];
+
+  // 1. Encrypt once for 3 recipients
+  const generated = await encryptMultiRecipientSecret(secretPayload, recipients);
+
+  assert.ok(generated.payload.ct, 'Master payload must have ciphertext');
+  assert.equal(generated.envelopes.length, 3, 'Must create 3 envelope slots');
+  assert.equal(generated.recipientSecrets.length, 3, 'Must return 3 recipient secret link items');
+  assert.ok(generated.adminToken, 'Must generate admin token');
+  assert.ok(generated.adminTokenHash, 'Must generate admin token hash');
+
+  // Verify all 3 recipient slot keys are unique
+  const keys = generated.recipientSecrets.map(r => r.slotKey);
+  const uniqueKeys = new Set(keys);
+  assert.equal(uniqueKeys.size, 3, 'All recipient slot keys must be unique');
+
+  // 2. Alice unwraps and decrypts
+  const aliceSecret = generated.recipientSecrets[0];
+  const aliceEnv = generated.envelopes[0];
+  const aliceCEK = await unwrapRecipientEnvelope(aliceEnv, aliceSecret.slotKey);
+  const aliceDecrypted = await decryptSecret(generated.payload, aliceCEK);
+  assert.equal(aliceDecrypted.text, secretPayload.text, 'Alice must decrypt the exact same secret');
+
+  // 3. Bob unwraps and decrypts
+  const bobSecret = generated.recipientSecrets[1];
+  const bobEnv = generated.envelopes[1];
+  const bobCEK = await unwrapRecipientEnvelope(bobEnv, bobSecret.slotKey);
+  const bobDecrypted = await decryptSecret(generated.payload, bobCEK);
+  assert.equal(bobDecrypted.text, secretPayload.text, 'Bob must decrypt the exact same secret');
+  assert.equal(bobCEK, aliceCEK, 'Both recipients must unwrap to the exact same Master CEK');
+
+  // 4. Charlie unwraps with correct passphrase using decryptMultiRecipientSecret
+  const charlieSecret = generated.recipientSecrets[2];
+  const charlieEnv = generated.envelopes[2];
+  const charlieDecrypted = await decryptMultiRecipientSecret(
+    generated.payload,
+    charlieEnv,
+    charlieSecret.slotKey,
+    'CharlieSecretPassphrase#42'
+  );
+  assert.equal(charlieDecrypted.text, secretPayload.text, 'Charlie must decrypt with passphrase');
+
+  // 5. Charlie fails without passphrase or with wrong passphrase
+  await assert.rejects(
+    async () => {
+      await decryptMultiRecipientSecret(generated.payload, charlieEnv, charlieSecret.slotKey, 'WrongPassphrase!');
+    },
+    /operation failed/i,
+    'Unwrapping with wrong passphrase must fail'
+  );
+});
+
+

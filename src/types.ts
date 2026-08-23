@@ -32,8 +32,50 @@ export interface StoredComment {
   decrypted?: EncryptedCommentPayload;
 }
 
+export interface RecipientEnvelopeSlot {
+  slotId: string;
+  label: string;
+  wrappedKey: string; // Base64URL encrypted CEK
+  iv: string;         // Base64URL IV for envelope unwrap
+  salt?: string;      // Base64URL salt for PBKDF2 (if slot has custom password)
+  burned: boolean;
+  readAt?: number | null;
+  burnOnRead: boolean;
+}
+
+export interface RecipientLinkInfo {
+  slotId: string;
+  label: string;
+  slotKey: string;
+  url: string;
+  burnOnRead: boolean;
+  hasPassword?: boolean;
+}
+
+export interface MultiRecipientCreatedResult {
+  pasteId: string;
+  isMultiRecipient: true;
+  adminToken: string;
+  adminUrl: string;
+  deleteToken: string;
+  expireAt: number;
+  recipientLinks: RecipientLinkInfo[];
+}
+
+export interface StandardCreatedResult {
+  pasteId: string;
+  isMultiRecipient?: false;
+  masterKey: string;
+  deleteToken: string;
+  expireAt: number;
+  burnAfterReading: boolean;
+}
+
+export type CreatedSecretResult = StandardCreatedResult | MultiRecipientCreatedResult;
+
 export interface PasteResponse {
   id: string;
+  isMultiRecipient?: boolean;
   payload: {
     v: number;
     ct: string;
@@ -48,6 +90,9 @@ export interface PasteResponse {
       decoySalt: string;
     };
   };
+  envelopes?: RecipientEnvelopeSlot[];
+  adminTokenHash?: string;
+  activeSlot?: RecipientEnvelopeSlot;
   expireAt: number;
   burnAfterReading: boolean;
   viewsRemaining: number;
@@ -72,3 +117,4 @@ export interface InboundDrop {
 }
 
 export type ActiveTab = 'create' | 'request-drop' | 'incident-room' | 'stego' | 'vault' | 'api-docs';
+

@@ -57,7 +57,7 @@ app.use('/api/', apiLimiter);
 // ----------------------------------------------------
 
 /**
- * POST /api/paste - Create a new encrypted paste
+ * POST /api/paste - Create a new encrypted paste (Standard or Multi-Recipient)
  */
 app.post('/api/paste', (req, res) => {
   try {
@@ -67,6 +67,9 @@ app.post('/api/paste', (req, res) => {
       burnAfterReading = false,
       maxViews = -1,
       openDiscussion = false,
+      isMultiRecipient = false,
+      envelopes = null,
+      adminTokenHash = null,
     } = req.body;
 
     if (!payload || !payload.ct || !payload.iv) {
@@ -83,6 +86,9 @@ app.post('/api/paste', (req, res) => {
       maxViews: Number(maxViews),
       openDiscussion: Boolean(openDiscussion),
       deleteToken,
+      isMultiRecipient: Boolean(isMultiRecipient),
+      envelopes,
+      adminTokenHash,
     });
 
     res.status(201).json({
@@ -98,21 +104,82 @@ app.post('/api/paste', (req, res) => {
 });
 
 /**
- * GET /api/paste/:id - Read encrypted paste
+ * GET /api/paste/:id - Read encrypted paste (optionally with recipient ?slot=slotId)
  */
 app.get('/api/paste/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const paste = storage.getPaste(id);
+    const { slot } = req.query;
+    const paste = storage.getPaste(id, slot ? String(slot) : null);
 
     if (!paste) {
       return res.status(404).json({ error: 'Secret not found, expired, or already burned.' });
+    }
+
+    if (paste.error) {
+      return res.status(paste.status || 400).json({ error: paste.error });
     }
 
     res.json(paste);
   } catch (err) {
     console.error('[API Error GET /paste/:id]', err);
     res.status(500).json({ error: 'Internal server error while retrieving paste.' });
+  }
+});
+
+/**
+ * GET /api/paste/:id/admin - Get Creator Admin Status & Telemetry
+ */
+app.get('/api/paste/:id/admin', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tokenHash } = req.query;
+
+    if (!tokenHash) {
+      return res.status(400).json({ error: 'Admin token hash is required.' });
+    }
+
+    const status = storage.getAdminStatus(id, String(tokenHash));
+    if (!status) {
+      return res.status(404).json({ error: 'Secret not found or expired.' });
+    }
+
+    if (status.error) {
+      return res.status(status.status || 403).json({ error: status.error });
+    }
+
+    res.json(status);
+  } catch (err) {
+    console.error('[API Error GET /paste/:id/admin]', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * DELETE /api/paste/:id/slot/:slotId - Revoke a specific recipient envelope slot
+ */
+app.delete('/api/paste/:id/slot/:slotId', (req, res) => {
+  try {
+    const { id, slotId } = req.params;
+    const { tokenHash } = req.body;
+
+    if (!tokenHash) {
+      return res.status(400).json({ error: 'Admin token hash is required.' });
+    }
+
+    const result = storage.revokeSlot(id, slotId, String(tokenHash));
+    if (!result) {
+      return res.status(404).json({ error: 'Secret not found or expired.' });
+    }
+
+    if (result.error) {
+      return res.status(result.status || 403).json({ error: result.error });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('[API Error DELETE /paste/:id/slot/:slotId]', err);
+    res.status(500).json({ error: 'Internal server error.' });
   }
 });
 

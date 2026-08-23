@@ -3,28 +3,26 @@ import { Navbar } from './components/Navbar';
 import { SecretEditor } from './components/SecretEditor';
 import { SecretViewer } from './components/SecretViewer';
 import { SecretCreatedModal } from './components/SecretCreatedModal';
+import { CreatorAdminModal } from './components/CreatorAdminModal';
 import { RequestSecretDrop } from './components/RequestSecretDrop';
 import { IncidentWarRoom } from './components/IncidentWarRoom';
 import { StegoTool } from './components/StegoTool';
 import { LocalVault } from './components/LocalVault';
 import { ApiCliHub } from './components/ApiCliHub';
-import { ActiveTab } from './types';
+import { ActiveTab, CreatedSecretResult } from './types';
 import { ShieldCheck, Lock, Terminal, Radio, Github } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('create');
 
-  // Viewing an existing secret
-  const [viewingSecret, setViewingSecret] = useState<{ pasteId: string; masterKey: string } | null>(null);
+  // Viewing an existing secret (Standard single-key or Multi-recipient slot)
+  const [viewingSecret, setViewingSecret] = useState<{ pasteId: string; masterKey: string; slotId?: string } | null>(null);
 
   // Secret Created Modal State
-  const [createdModalData, setCreatedModalData] = useState<{
-    pasteId: string;
-    masterKey: string;
-    deleteToken: string;
-    expireAt: number;
-    burnAfterReading: boolean;
-  } | null>(null);
+  const [createdModalData, setCreatedModalData] = useState<CreatedSecretResult | null>(null);
+
+  // Creator Admin Dashboard State
+  const [adminModalData, setAdminModalData] = useState<{ pasteId: string; adminToken: string } | null>(null);
 
   // URL Hash-based routing state
   const [inboundDropParams, setInboundDropParams] = useState<{ dropId: string; pubKey: string } | null>(null);
@@ -38,20 +36,30 @@ export function App() {
         setViewingSecret(null);
         setInboundDropParams(null);
         setWarRoomParams(null);
+        setAdminModalData(null);
         return;
       }
 
       const params = new URLSearchParams(hash);
 
-      // 1. Paste Viewer Route: #p=<pasteId>&k=<masterKey>
+      // 1. Paste Viewer Route: #p=<pasteId>&k=<masterKey>&slot=<slotId>
       const p = params.get('p');
       const k = params.get('k');
+      const slot = params.get('slot');
       if (p && k) {
-        setViewingSecret({ pasteId: p, masterKey: k });
+        setViewingSecret({ pasteId: p, masterKey: k, slotId: slot || undefined });
         return;
       }
 
-      // 2. Inbound Drop Route: #drop=<dropId>&pub=<pubKey>
+      // 2. Creator Admin Route: #admin=<pasteId>&token=<adminToken>
+      const admin = params.get('admin');
+      const token = params.get('token');
+      if (admin && token) {
+        setAdminModalData({ pasteId: admin, adminToken: token });
+        return;
+      }
+
+      // 3. Inbound Drop Route: #drop=<dropId>&pub=<pubKey>
       const drop = params.get('drop');
       const pub = params.get('pub');
       if (drop && pub) {
@@ -60,7 +68,7 @@ export function App() {
         return;
       }
 
-      // 3. War Room Route: #warroom=<roomId>&key=<roomKey>
+      // 4. War Room Route: #warroom=<roomId>&key=<roomKey>
       const warroom = params.get('warroom');
       const roomKey = params.get('key');
       if (warroom && roomKey) {
@@ -75,26 +83,26 @@ export function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
-  const handleSecretCreated = (result: {
-    pasteId: string;
-    masterKey: string;
-    deleteToken: string;
-    expireAt: number;
-    burnAfterReading: boolean;
-  }) => {
+  const handleSecretCreated = (result: CreatedSecretResult) => {
     setCreatedModalData(result);
   };
 
-  const handleOpenSecret = (pasteId: string, masterKey: string) => {
+  const handleOpenSecret = (pasteId: string, masterKey: string, slotId?: string) => {
     setCreatedModalData(null);
-    window.location.hash = `p=${pasteId}&k=${masterKey}`;
+    if (slotId) {
+      window.location.hash = `p=${pasteId}&slot=${slotId}&k=${masterKey}`;
+    } else {
+      window.location.hash = `p=${pasteId}&k=${masterKey}`;
+    }
   };
 
   const handleNewSecret = () => {
     setViewingSecret(null);
     setCreatedModalData(null);
+    setAdminModalData(null);
     window.location.hash = '';
   };
+
 
   return (
     <div className="min-h-screen bg-obsidian-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-300">
@@ -123,6 +131,7 @@ export function App() {
           <SecretViewer
             pasteId={viewingSecret.pasteId}
             masterKey={viewingSecret.masterKey}
+            slotId={viewingSecret.slotId}
             onClose={handleNewSecret}
           />
         ) : (
@@ -157,15 +166,24 @@ export function App() {
       {/* Secret Created Success Modal */}
       {createdModalData && (
         <SecretCreatedModal
-          pasteId={createdModalData.pasteId}
-          masterKey={createdModalData.masterKey}
-          deleteToken={createdModalData.deleteToken}
-          expireAt={createdModalData.expireAt}
-          burnAfterReading={createdModalData.burnAfterReading}
+          data={createdModalData}
           onClose={() => setCreatedModalData(null)}
           onOpenSecret={handleOpenSecret}
         />
       )}
+
+      {/* Creator Admin Dashboard Modal */}
+      {adminModalData && (
+        <CreatorAdminModal
+          pasteId={adminModalData.pasteId}
+          adminToken={adminModalData.adminToken}
+          onClose={() => {
+            setAdminModalData(null);
+            window.location.hash = '';
+          }}
+        />
+      )}
+
 
       {/* Footer */}
       <footer className="border-t border-white/5 bg-obsidian-950/80 backdrop-blur-md py-6 text-xs text-slate-500 font-mono">

@@ -1,119 +1,346 @@
-# CipherDrop 🔐
-> **Next-Generation Zero-Knowledge Sovereign Secret Exchange Platform**
+# CipherDrop
 
-CipherDrop is a modern, decentralized, zero-knowledge platform for sharing sensitive text, environment variables, credentials, private keys, and confidential files online. Built as an independent reimagining of PrivateBin, CipherDrop replaces legacy 2010s stacks with a high-performance, modern full-stack architecture (**React 18, TypeScript, Vite, Tailwind CSS, Node.js, WebSockets, SQLite WAL**) and brings breakthrough innovations like **Duress/Decoy Plausible Deniability**, **Inbound "Request-a-Secret" DropBoxes**, **Real-Time E2EE Ephemeral Incident War Rooms**, and **Steganography Disguise Carriers**.
+> Next-Generation Zero-Knowledge Sovereign Secret Exchange Platform
 
----
+CipherDrop is a decentralized, zero-knowledge platform engineered for exchanging sensitive text, environment variables, credentials, private keys, and confidential file payloads across untrusted networks. Built as a ground-up modernization of the PrivateBin paradigm, CipherDrop replaces legacy 2010s PHP/jQuery architectures with a modern, high-throughput systems stack (React 18, TypeScript, Vite, Tailwind CSS, Node.js, WebSockets, and SQLite in Write-Ahead Logging mode).
 
-## Key Features & Innovations
-
-### 1.  Coercion Resistance (Duress / Decoy Mode)
-* Set a secondary **Duress Password** alongside your real password.
-* If forced to disclose your password under duress or coercion, entering the duress password seamlessly derives the secondary key and decrypts an innocent **Decoy Secret** with zero mathematical proof that a primary secret exists.
-
-### 2.  Inbound "Request-a-Secret" DropBox
-* Need credentials from a non-technical client, vendor, or colleague? Generate a single-use inbound secret drop link.
-* Uses browser-generated **RSA-OAEP 2048-bit + AES-GCM hybrid asymmetric encryption**.
-* The submitter enters the credentials in their browser; their browser encrypts it with your public key before sending. Only your browser session with the private key can decrypt the submission!
-
-### 3.  Real-Time E2EE Ephemeral Incident War Room
-* Instant collaborative workspace for DevOps, SysAdmins, and SecOps responders handling live outages or credential rotation.
-* Features a live synchronized encrypted collaborative scratchpad and real-time incident chat over WebSockets.
-* Includes an **Emergency Nuke & Zeroize** button that immediately purges the room state across all connected peers.
-
-### 4.  Steganography Disguise Carrier (DPI Bypass)
-* Injects encrypted AES-256-GCM payloads into the Least Significant Bits (LSB) of PNG carrier image pixels.
-* Recipient can drag-and-drop the clean carrier image into CipherDrop and decrypt the hidden payload with their key.
-
-### 5.  Multi-Format Smart Secret Editors
-* **Multi-Language Code Editor**: Syntax highlighting with line numbers for 20+ languages (Python, JS, TS, Rust, Go, SQL, Bash, YAML, JSON, Dockerfile, etc.).
-* **Live Markdown Split View**: Real-time side-by-side formatted preview with tables and checklists.
-* **Structured `.ENV` Builder**: Specialized key-value credentials constructor with individual value masking and one-click copy buttons.
-* **Encrypted File Attachments**: Drag-and-drop any binary file (PDFs, images, documents, zips up to 15MB) with client-side chunk encryption.
-
-### 6.  Ephemeral Lifecycles & Guaranteed Destruction
-* **Granular Expirations**: Burn after 1 view, 5m, 15m, 1h, 1d, 7d, 30d, or persistent.
-* **Custom View Limits**: Restrict secrets to exactly 1, 2, 5, or 10 views before automatic destruction.
-* **Automated Background Janitor**: Server-side background worker automatically sweeps and purges expired secrets every 30 seconds.
-* **Encrypted Discussions**: Threaded replies where every comment is encrypted symmetrically before submission.
-
-### 7.  Air-Gapped & Developer Tools
-* **Air-Gapped QR Code Handoff**: Scan encrypted secret URLs directly from phone cameras.
-* **Offline Cryptographic Sandbox**: Encrypt and decrypt text and files 100% offline without sending any network requests.
-* **Interactive API & CLI Hub**: Live code generators with copy-paste snippets in **cURL**, **JavaScript**, **Python**, **Go**, and **Rust**.
+CipherDrop introduces cryptographic innovations including Multi-Recipient Envelope Key Wrapping, Plausible Deniability via Duress Decoys, Inbound Asymmetric Secret DropBoxes, Real-Time Ephemeral Incident War Rooms, and LSB Steganographic Image Carriers.
 
 ---
 
-##  Cryptographic Architecture
+## Technical Specifications
 
-* **Symmetric Cipher**: AES-256-GCM (Galois/Counter Mode) with 128-bit authentication tag.
-* **Key Derivation**: PBKDF2-SHA256 with **600,000 iterations** (OWASP standard) + 128-bit random salt.
-* **Asymmetric Exchange**: RSA-OAEP 2048-bit with SHA-256 for inbound secret drops.
-* **Master Key Encoding**: Base58 (Bitcoin alphabet) preventing ambiguous characters (`0`, `O`, `I`, `l`).
-* **URL Hash Routing**: Decryption keys reside exclusively in the `#` fragment (`#p=<id>&k=<key>`), which RFC 3986 guarantees is never sent to the server in HTTP requests.
-* **Memory Hygiene**: Memory buffers holding key material are explicitly zeroized with PRNG random bytes upon unmount.
+| Parameter | Specification | Standard / Reference |
+| :--- | :--- | :--- |
+| Symmetric Cipher | AES-256-GCM (256-bit key, 96-bit IV, 128-bit auth tag) | NIST SP 800-38D |
+| Key Derivation | PBKDF2-HMAC-SHA256 (600,000 iterations, 128-bit salt) | OWASP Password Storage Guidelines |
+| Asymmetric Exchange | RSA-OAEP 2048-bit with SHA-256 Digest | PKCS #1 v2.2 / RFC 8017 |
+| Secret Key Encoding | Base58 (Bitcoin Alphabet, Non-Ambiguous) | BIP-0058 |
+| Hash Fragment Transport | URI Fragment (`#p=<id>&k=<key>`) | RFC 3986 Section 3.5 |
+| Storage Architecture | SQLite with WAL (Write-Ahead Logging) Mode | ACID-Compliant Embedded Storage |
+| Real-Time Relay | Ephemeral WebSocket Blind Pub/Sub Relay | RFC 6455 |
+| Client Cryptography | W3C Web Cryptography API (SubtleCrypto) | W3C Recommendation |
 
 ---
 
-##  Getting Started
+## Threat Model and Security Guarantees
+
+CipherDrop operates under a Zero-Knowledge Trust Model:
+
+### 1. Untrusted Server Assumption
+The storage and relay server is assumed to be fully compromised, monitored by untrusted infrastructure operators, or subject to subpoena. The server:
+- Never receives unencrypted payload data.
+- Never receives master decryption keys, slot keys, or user passphrases.
+- Cannot decrypt stored secrets, comments, war room messages, or file attachments.
+- Receives key material solely inside the client-side URI fragment identifier (`#`), which standard HTTP clients do not transmit over the network.
+
+### 2. Coercion and Compelled Disclosure Defense (Rubber-Hose Cryptanalysis)
+When a user is coerced into revealing a password under duress:
+- Providing the primary password decrypts the authentic payload.
+- Providing the pre-configured duress password decrypts an innocent decoy payload.
+- Decoy containers are indistinguishable from authentic containers, offering plausible deniability with zero mathematical proof of secondary data existence.
+
+### 3. Slot-Swapping and Tampering Mitigations
+In Multi-Recipient Envelope mode:
+- Each wrapped Content Encryption Key (CEK) is authenticated with Additional Authenticated Data (AAD) strictly bound to `cipherdrop-envelope:<slotId>`.
+- Any attempt by an intermediary to swap envelopes or alter slot identifiers fails authentication tag verification during AES-GCM decryption.
+
+### 4. Ephemeral Memory Hygiene
+Client-side memory buffers containing raw key material, decrypted strings, and binary file buffers are explicitly scrubbed and overwritten with pseudorandom bytes (`crypto.getRandomValues`) upon component unmount or view teardown.
+
+---
+
+## Core Protocol and Cryptographic Workflows
+
+### 1. Multi-Recipient Envelope Encryption (Hybrid Key Wrapping)
+
+When sharing a single confidential payload among $N$ distinct recipients:
+
+```
+[ Secret Payload ]
+       |
+       v (AES-256-GCM)
+[ Encrypted Ciphertext ] <----------------------------------+
+                                                            |
+                     [ Content Encryption Key (CEK) ]       |
+                                    |                       |
+       +----------------------------+-----------------------+
+       |                            |                       |
+       v (Wrap with Slot Key 1)     v (Wrap with Slot Key 2)v (Wrap with Slot Key N)
+ [ Envelope 1 (Alice) ]       [ Envelope 2 (Bob) ]    [ Envelope N (Custom) ]
+       |                            |                       |
+       v                            v                       v
+ URL: #p=ID&slot=1&k=KEY1    URL: #p=ID&slot=2&k=KEY2 URL: #p=ID&slot=N&k=KEYN
+```
+
+1. **Payload Encryption**: The secret payload is serialized and encrypted exactly once using a cryptographically random 256-bit Content Encryption Key ($K_{CEK}$) via AES-256-GCM.
+2. **Envelope Wrapping**: For each recipient $i \in \{1, \dots, N\}$, an isolated slot key $K_{slot, i}$ is generated. $K_{CEK}$ is encrypted with $K_{slot, i}$ (derived with PBKDF2 if an optional passphrase is set) using AES-256-GCM with AAD bound to `cipherdrop-envelope:<slotId_i>`.
+3. **Zero-Knowledge Admin Telemetry**: An admin token $T_{admin}$ is generated client-side. The server stores only $H(T_{admin}) = \text{SHA-256}(T_{admin})$. The creator monitors read receipts and can selectively revoke individual recipient envelopes without invalidating access for remaining participants.
+
+### 2. Inbound Asymmetric "Request-a-Secret" Exchange
+
+For collecting credentials from external clients without requiring prior key exchange:
+
+```
+[ Requester Client ]                                [ Submitter Client ]
+        |                                                   |
+ 1. Generate RSA-2048 Keypair                               |
+ 2. Store Private Key in sessionStorage                     |
+ 3. Send Public Key URL ----------------------------------> |
+                                                    4. Enter secret credentials
+                                                    5. Generate random AES-256 key
+                                                    6. Encrypt secret with AES-256-GCM
+                                                    7. Encrypt AES key with RSA Public Key
+                                                    8. Submit hybrid payload to server
+        | <-------------------------------------------------+
+ 9. Fetch encrypted payload from server
+10. Decrypt AES key with RSA Private Key
+11. Decrypt secret payload with AES key
+```
+
+---
+
+## Architectural Comparison
+
+| Dimension | Legacy PrivateBin | HashiCorp Vault | Bitwarden Send | CipherDrop |
+| :--- | :--- | :--- | :--- | :--- |
+| Primary Focus | Pastebin Text Sharing | Infrastructure Secrets | Password Management | Zero-Knowledge Secret Exchange |
+| Frontend Architecture | jQuery / Bootstrap / PHP | React / Enterprise UI | Angular / TypeScript | React 18 / TypeScript / Vite |
+| Key Derivation Rounds | 100,000 PBKDF2 | N/A (Server-Managed) | 100,000 - 600,000 | 600,000 PBKDF2-SHA256 |
+| Multi-Recipient Envelopes | No | Access Policies (RBAC) | No | Yes (Isolated Keys + Telemetry) |
+| Duress / Decoy Mode | No | No | No | Yes (Plausible Deniability) |
+| Inbound Asymmetric Drops | No | No | No | Yes (RSA-OAEP 2048-bit) |
+| Real-Time Incident Rooms | No | No | No | Yes (E2EE WebSockets) |
+| Steganographic Disguise | No | No | No | Yes (LSB Pixel Carrier) |
+| Structured Formats | Text / Basic Code | Key-Value / JSON | Text / File | Code (20+ langs), .ENV, MD, Files |
+| Offline Cryptographic Tool | No | No | No | Yes (100% Offline Sandbox) |
+
+---
+
+## Comprehensive Feature Guide
+
+### 1. Multi-Recipient Envelopes and Creator Telemetry
+- Supports arbitrary $N$ recipients with custom slot labels.
+- Independent burn-after-reading toggles per recipient slot.
+- Optional slot-specific passphrases for two-factor link protection.
+- Creator Admin Dashboard providing real-time read receipts (`Pending`, `Read`, `Burned`) and single-click individual slot revocation.
+
+### 2. Coercion Resistance (Duress / Decoy Mode)
+- Configures dual cryptographic key derivations from distinct password inputs.
+- The primary password decrypts authentic confidential materials.
+- The duress password decrypts an innocent decoy document without leaving traces of the primary container.
+
+### 3. Inbound "Request-a-Secret" DropBox
+- Generates ephemeral public-key drop links to securely collect API tokens, database connection strings, or private keys from non-technical stakeholders.
+- Uses client-side RSA-OAEP 2048-bit asymmetric encryption to guarantee that only the generating browser instance can read the submission.
+
+### 4. Real-Time E2EE Ephemeral Incident War Room
+- Zero-knowledge collaborative response space for DevOps and SecOps teams handling live security incidents.
+- End-to-end encrypted live markdown collaborative scratchpad.
+- End-to-end encrypted live chat relayed over blind WebSocket pub/sub channels.
+- Emergency Nuke trigger that broadcasts a cryptographic wipe signal and zeroes out server memory.
+
+### 5. Steganographic Disguise Carrier
+- Embeds encrypted AES-256-GCM payloads into the Least Significant Bits (LSB) of PNG carrier image pixel arrays.
+- Transports confidential credentials past deep packet inspection (DPI) firewalls and content-filtering proxies as visually indistinguishable standard images.
+
+### 6. Developer Workspaces and Structured Formats
+- **Multi-Language Code Highlighting**: Syntax support for 20+ languages including Python, TypeScript, JavaScript, Rust, Go, SQL, Bash, YAML, JSON, and Dockerfile.
+- **Interactive .ENV Key Constructor**: Structured key-value editor with individual value masking, format validation, and one-click export.
+- **Live Markdown Split-View**: Real-time rendering with support for tables, blockquotes, code blocks, and checklists.
+- **Encrypted Binary Attachments**: Chunked encryption for files up to 15MB with MIME-type preservation.
+
+### 7. Ephemeral Lifecycles and Background Janitor
+- Configurable expiration intervals: 1 view (Burn on Read), 5 minutes, 15 minutes, 1 hour, 1 day, 7 days, 30 days, or persistent.
+- View counters with atomic decrement operations.
+- Server-side background worker running every 30 seconds to purge expired and burned records from SQLite.
+
+### 8. Air-Gapped Operation and Offline Sandbox
+- High-density QR code generator enabling direct optical transfer to mobile devices and air-gapped workstations.
+- Offline Cryptographic Sandbox allowing encryption, decryption, and hash verification with zero network dependencies.
+
+---
+
+## REST API and WebSocket Reference
+
+### Secret Management Endpoints
+
+#### Create Secret
+```http
+POST /api/paste
+Content-Type: application/json
+
+{
+  "payload": {
+    "v": 2,
+    "ct": "<base64url_ciphertext>",
+    "iv": "<base64url_iv>",
+    "salt": "<base64url_salt>",
+    "duress": { ... }
+  },
+  "isMultiRecipient": false,
+  "envelopes": null,
+  "adminTokenHash": null,
+  "expireInSeconds": 86400,
+  "burnAfterReading": false,
+  "maxViews": -1,
+  "openDiscussion": false
+}
+```
+
+#### Fetch Secret / Slot
+```http
+GET /api/paste/:id
+GET /api/paste/:id?slot=:slotId
+```
+
+#### Creator Admin Telemetry
+```http
+GET /api/paste/:id/admin?tokenHash=:tokenHash
+```
+
+#### Revoke Recipient Slot
+```http
+DELETE /api/paste/:id/slot/:slotId
+Content-Type: application/json
+
+{
+  "tokenHash": "<sha256_admin_token_hash>"
+}
+```
+
+#### Inbound Drop Endpoints
+```http
+POST /api/request-drop
+GET  /api/request-drop/:id
+POST /api/request-drop/:id/submit
+```
+
+#### Incident War Room WebSocket
+```
+ws://<host>/ws/incident-room?room=<room_id>
+```
+
+---
+
+## Developer SDK Integration Examples
+
+### cURL
+```bash
+# Fetch blind ciphertext payload
+curl -s https://cipherdrop.internal/api/paste/4a1f8b3c9d2e0f1a | jq .
+```
+
+### Python
+```python
+import base64
+import requests
+
+# Retrieve encrypted payload from CipherDrop API
+response = requests.get("https://cipherdrop.internal/api/paste/4a1f8b3c9d2e0f1a")
+payload = response.json()["payload"]
+
+print(f"Ciphertext received: {payload['ct'][:32]}...")
+# Decryption performed client-side using cryptography or PyCryptodome (AES-256-GCM)
+```
+
+### TypeScript / Node.js
+```typescript
+import { decryptSecret } from './src/crypto/webcrypto';
+
+async function fetchAndDecrypt(pasteId: string, masterKey: string) {
+  const res = await fetch(`https://cipherdrop.internal/api/paste/${pasteId}`);
+  const data = await res.json();
+  const decrypted = await decryptSecret(data.payload, masterKey);
+  console.log('Decrypted content:', decrypted.text);
+}
+```
+
+---
+
+## Automated Verification and Test Suite
+
+The CipherDrop test suite validates cryptographic invariants, edge cases, and end-to-end workflows.
+
+### Running Cryptographic Unit Tests
+```bash
+npm test
+```
+Validates:
+- Base64URL and Base58 bidirectional encoding integrity.
+- CSPRNG master key entropy and distribution.
+- AES-256-GCM zero-knowledge encryption and decryption without passphrases.
+- PBKDF2-HMAC-SHA256 (600,000 iterations) password derivation and authentication rejection.
+- Duress / decoy plausible deniability execution.
+- RSA-OAEP 2048-bit asymmetric key generation and exchange.
+- Multi-recipient key envelope wrapping and unwrapping across $N$ recipients.
+- Memory zeroization hygiene.
+
+### Running Full End-to-End Integration Tests
+```bash
+node --test tests/e2e_integration.test.js
+```
+Validates:
+- Secret creation, blind retrieval, and client-side decryption.
+- Duress password switching under live server conditions.
+- Atomic burn-on-read destruction and eviction.
+- Threaded end-to-end encrypted comments.
+- Asymmetric inbound drop submission and retrieval.
+- WebSocket blind relay for real-time war rooms.
+- Multi-recipient slot burning, creator admin telemetry, and selective slot revocation.
+
+---
+
+## Local Development and Deployment
 
 ### Prerequisites
-* **Node.js** v18+ (tested on Node v22 / v24)
-* **npm** v9+
+- Node.js v18.0.0 or higher
+- npm v9.0.0 or higher
 
-### Installation
+### Local Installation
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/<your-repo-name>.git
-cd <your-repo-name>
+git clone https://github.com/<your-username>/CipherDrop.git
+cd CipherDrop
 
 # Install dependencies
 npm install
-```
 
-### Development
-To run both the backend (Express + WebSockets) and frontend (Vite) concurrently:
-```bash
+# Start development servers (Frontend on :5173, Backend on :3001)
 npm run dev
-```
-* **Frontend**: `http://localhost:5173`
-* **Backend API & WebSockets Relay**: `http://localhost:3001`
-
-### Running Automated Tests
-```bash
-# Run unit tests
-npm test
-
-# Run full end-to-end integration test suite
-node --test tests/e2e_integration.test.js
 ```
 
 ### Production Build
 ```bash
-# Compile TypeScript & bundle production assets
+# Compile TypeScript and generate optimized Vite bundle
 npm run build
 
 # Start production server
-npm start
+NODE_ENV=production npm start
+```
+
+### Docker Deployment
+```dockerfile
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server ./server
+EXPOSE 3001
+CMD ["node", "server/index.js"]
 ```
 
 ---
 
-## 📊 Comparison Matrix
+## License
 
-| Capability | Legacy PrivateBin | CipherDrop |
-| :--- | :--- | :--- |
-| **Technology Stack** | PHP 7/8, jQuery, Bootstrap | **React 18, TypeScript, Vite, Tailwind CSS, Node.js, WebSockets, SQLite WAL** |
-| **Cryptography Core** | SJCL / early WebCrypto, 100k rounds | **WebCrypto AES-256-GCM, 600,000 PBKDF2 iterations** |
-| **Coercion Resistance** |  None | **Duress / Decoy Password Plausible Deniability** |
-| **Inbound Secret Intake** |  None | **Asymmetric RSA-OAEP "Request-a-Secret" DropBox** |
-| **Real-Time Collaboration**|  None | **Live E2EE Ephemeral Incident War Room with Emergency Nuke** |
-| **DPI Bypass Disguise** |  None | **Steganography PNG Carrier (LSB Pixel Injection)** |
-| **Secret Formats** | Plaintext, Basic Code | **20+ Language Highlighting, Live Markdown, Structured .ENV, File Attachments** |
-| **Air-Gapped / Offline** | Partial | **QR Code Handoff + 100% Offline Local Crypto Sandbox** |
-| **Developer Hub** | Basic API | **Interactive Hub with cURL, JS, Python, Go, Rust code generators** |
-
----
-
-##  License
-This project is open-source under the **MIT License**.
+This project is licensed under the **MIT License**.
