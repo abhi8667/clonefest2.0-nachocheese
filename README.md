@@ -105,13 +105,13 @@ npm start
 | :--- | :--- | :--- |
 | **Technology Stack** | PHP 7/8, jQuery, Bootstrap | **React 18, TypeScript, Vite, Tailwind CSS, Node.js, WebSockets, SQLite WAL** |
 | **Cryptography Core** | SJCL / early WebCrypto, 100k rounds | **WebCrypto AES-256-GCM, 600,000 PBKDF2 iterations** |
-| **Coercion Resistance** |  None | ** Duress / Decoy Password Plausible Deniability** |
-| **Inbound Secret Intake** |  None | ** Asymmetric RSA-OAEP "Request-a-Secret" DropBox** |
-| **Real-Time Collaboration**|  None | ** Live E2EE Ephemeral Incident War Room with Emergency Nuke** |
-| **DPI Bypass Disguise** |  None | ** Steganography PNG Carrier (LSB Pixel Injection)** |
+| **Coercion Resistance** |  None | **Duress / Decoy Password Plausible Deniability** |
+| **Inbound Secret Intake** |  None | **Asymmetric RSA-OAEP "Request-a-Secret" DropBox** |
+| **Real-Time Collaboration**|  None | **Live E2EE Ephemeral Incident War Room with Emergency Nuke** |
+| **DPI Bypass Disguise** |  None | **Steganography PNG Carrier (LSB Pixel Injection)** |
 | **Secret Formats** | Plaintext, Basic Code | **20+ Language Highlighting, Live Markdown, Structured .ENV, File Attachments** |
-| **Air-Gapped / Offline** | Partial | ** QR Code Handoff + 100% Offline Local Crypto Sandbox** |
-| **Developer Hub** | Basic API | **📖 Interactive Hub with cURL, JS, Python, Go, Rust code generators** |
+| **Air-Gapped / Offline** | Partial | **QR Code Handoff + 100% Offline Local Crypto Sandbox** |
+| **Developer Hub** | Basic API | **Interactive Hub with cURL, JS, Python, Go, Rust code generators** |
 
 ---
 
