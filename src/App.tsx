@@ -9,6 +9,7 @@ import { IncidentWarRoom } from './components/IncidentWarRoom';
 import { StegoTool } from './components/StegoTool';
 import { LocalVault } from './components/LocalVault';
 import { ApiCliHub } from './components/ApiCliHub';
+import { HeroSection } from './components/HeroSection';
 import { ActiveTab, CreatedSecretResult } from './types';
 import { ShieldCheck, Lock, Terminal, Radio, Github } from 'lucide-react';
 
@@ -107,11 +108,12 @@ export function App() {
   return (
     <div className="min-h-screen bg-obsidian-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-300">
       
-      {/* Background Decorative Glows */}
+      {/* Background Decorative Glows (Animated) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute -top-40 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 -right-40 w-96 h-96 bg-emerald-700/5 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute -top-40 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl bg-glow-1"></div>
+        <div className="absolute top-1/2 -right-40 w-96 h-96 bg-emerald-700/5 rounded-full blur-3xl bg-glow-2"></div>
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl bg-glow-3"></div>
+        <div className="absolute inset-0 grid-pattern opacity-50"></div>
       </div>
 
       {/* Top Navigation */}
@@ -135,9 +137,12 @@ export function App() {
             onClose={handleNewSecret}
           />
         ) : (
-          <>
+          <div key={activeTab} className="animate-fade-in">
             {activeTab === 'create' && (
-              <SecretEditor onSecretCreated={handleSecretCreated} />
+              <>
+                <HeroSection onScrollToEditor={() => {}} />
+                <SecretEditor onSecretCreated={handleSecretCreated} />
+              </>
             )}
 
             {activeTab === 'request-drop' && (
@@ -159,7 +164,7 @@ export function App() {
             {activeTab === 'vault' && <LocalVault />}
 
             {activeTab === 'api-docs' && <ApiCliHub />}
-          </>
+          </div>
         )}
       </main>
 
@@ -186,19 +191,37 @@ export function App() {
 
 
       {/* Footer */}
-      <footer className="border-t border-white/5 bg-obsidian-950/80 backdrop-blur-md py-6 text-xs text-slate-500 font-mono">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span className="text-slate-300 font-bold">CipherDrop Sovereign Platform</span>
-            <span>• E2EE v2.0</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <span>AES-256-GCM</span>
-            <span>PBKDF2-SHA256 (600k)</span>
-            <span>RSA-OAEP 2048</span>
-            <span>Zero Server Knowledge</span>
+      <footer className="border-t border-emerald-500/10 bg-obsidian-950/90 backdrop-blur-md py-6 text-xs text-slate-500 font-mono">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4">
+            {/* Row 1: Brand + Crypto Badges */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-slate-300 font-bold">CipherDrop</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">E2EE v2.0</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <span className="crypto-badge">🔒 AES-256-GCM</span>
+                <span className="crypto-badge">🔑 PBKDF2-600k</span>
+                <span className="crypto-badge">🛡️ RSA-OAEP 2048</span>
+                <span className="crypto-badge">📡 WebSocket E2EE</span>
+                <span className="crypto-badge">⏱️ Time-Lock UTC</span>
+              </div>
+            </div>
+            {/* Row 2: Links */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-white/5">
+              <span className="text-slate-600">Zero-Knowledge Sovereign Secret Exchange Platform</span>
+              <div className="flex items-center gap-4 text-slate-500">
+                <a href="https://github.com/abhi8667/clonefest2.0-nachocheese" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
+                  <Github className="w-3.5 h-3.5" /> GitHub
+                </a>
+                <span className="text-white/10">|</span>
+                <span className="hover:text-emerald-400 transition-colors cursor-pointer" onClick={() => { setActiveTab('api-docs' as ActiveTab); window.location.hash = ''; }}>API Docs</span>
+                <span className="text-white/10">|</span>
+                <span className="text-slate-600">MIT License</span>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

@@ -16,6 +16,7 @@ import {
   decryptSecret 
 } from '../crypto/webcrypto';
 import { DecryptedSecret } from '../types';
+import { FeatureHighlights } from './FeatureHighlights';
 
 export const LocalVault: React.FC = () => {
   const [mode, setMode] = useState<'encrypt' | 'decrypt'>('encrypt');
@@ -266,6 +267,16 @@ export const LocalVault: React.FC = () => {
           )}
         </div>
       )}
+
+      <FeatureHighlights
+        title="Air-Gapped Security"
+        cards={[
+          { icon: <WifiOff className="w-5 h-5" />, title: '100% Offline', description: 'Zero network requests. All encryption and decryption happens locally in browser memory.' },
+          { icon: <Cpu className="w-5 h-5" />, title: 'WebCrypto Native', description: 'Uses hardware-accelerated W3C Web Cryptography API for maximum performance.' },
+          { icon: <ShieldCheck className="w-5 h-5" />, title: 'Air-Gap Safe', description: 'Designed for isolated workstations and classified environments with no connectivity.' },
+          { icon: <KeyRound className="w-5 h-5" />, title: 'QR Code Export', description: 'Generate high-density QR codes for optical transfer to mobile devices.' },
+        ]}
+      />
 
     </div>
   );

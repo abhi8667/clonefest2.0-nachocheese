@@ -10,7 +10,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6.1-646CFF.svg?style=for-the-badge&logo=vite)](https://vitejs.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg?style=for-the-badge&logo=nodedotjs)](https://nodejs.org/)
 [![SQLite WAL](https://img.shields.io/badge/Storage-SQLite%20WAL-003B57.svg?style=for-the-badge&logo=sqlite)](https://www.sqlite.org/)
-[![Test Status](https://img.shields.io/badge/Tests-25%2F25%20Passing-brightgreen.svg?style=for-the-badge)](tests/)
+[![CI](https://github.com/abhi8667/clonefest2.0-nachocheese/actions/workflows/tests.yml/badge.svg)](https://github.com/abhi8667/clonefest2.0-nachocheese/actions/workflows/tests.yml)
 [![Security: Zero--Knowledge](https://img.shields.io/badge/Security-Zero--Knowledge%20E2EE-emerald.svg?style=for-the-badge)](https://w3c.github.io/webcrypto/)
 [![Dependabot](https://img.shields.io/badge/Dependabot-Active-blue.svg?style=for-the-badge&logo=dependabot)](.github/dependabot.yml)
 [![Vulnerabilities: 0](https://img.shields.io/badge/Vulnerabilities-0%20Clean-brightgreen.svg?style=for-the-badge)](package-lock.json)
@@ -80,7 +80,7 @@ Modern engineering teams, SecOps responders, and privacy advocates face critical
 
 ## 🔒 Threat Model and Security Guarantees
 
-CipherDrop is formally modeled against adversarial network environments and compromised storage backends:
+CipherDrop's design assumes adversarial network environments and compromised storage backends. The guarantees below are enforced by the implementation and exercised by the automated test suite; they are not the product of a formal verification process (e.g. TLA+ or a machine-checked proof) — that remains a roadmap item, not a current claim.
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -153,6 +153,10 @@ To protect administrative actions (such as per-slot envelope revocation, creator
 | **`Referrer-Policy`** | `no-referrer` | Prevents URI fragment leakage in HTTP `Referer` headers to external destinations. |
 | **`Permissions-Policy`** | `camera=(), microphone=(), geolocation=()` | Restricts browser hardware capability access. |
 
+### 9. API Rate Limiting
+
+All `/api/*` routes are protected by a sliding-window rate limiter (`express-rate-limit`): **120 requests per IP per 60-second window**, with `RateLimit-*` standard headers returned so well-behaved clients can back off, and a `429`-style JSON error (`Too many requests, please slow down.`) once exceeded. This bounds brute-force guessing against multi-recipient slot IDs, admin-token endpoints, and time-lock polling.
+
 ---
 
 ## ✨ Key Features
@@ -215,6 +219,17 @@ To protect administrative actions (such as per-slot envelope revocation, creator
 | **Real-Time Transport** | Ephemeral WebSocket Blind Pub/Sub Relay | RFC 6455 |
 | **Client Cryptography** | W3C Web Cryptography API (`window.crypto.subtle`) | W3C Recommendation |
 | **Memory Hygiene** | CSPRNG buffer zeroization (`crypto.getRandomValues`) | Defensive Systems Engineering |
+
+### Frontend Stack (Verified Against Source)
+
+| Layer | Choice | Notes |
+| :--- | :--- | :--- |
+| **UI Library** | React 18.3 (function components + hooks) | No component/design-system library — hand-built in `src/components/`. |
+| **State Management** | Local `useState`/`useEffect` in [`App.tsx`](src/App.tsx) and per-component state | No global state library (no Redux/Zustand/Jotai) is used anywhere in `src/`. Routing is hand-rolled via `window.location.hash` parsing, not a router library. |
+| **Styling** | Tailwind CSS v3 utility classes, plus a small hand-written vanilla-CSS layer in [`src/index.css`](src/index.css) (custom scrollbars, keyframe animations) | Not a pure Tailwind or pure vanilla-CSS project — it's both. |
+| **Icons** | `lucide-react` | |
+| **Build Tool** | Vite 6.1 | Dev server proxies `/api` and `/ws` to the Express backend on `:3001` (see [`vite.config.ts`](vite.config.ts)). |
+| **HTTP Client** | Native `fetch` | No axios/ky/etc. |
 
 ### PBKDF2-HMAC-SHA256 (600,000 Iterations) vs. Argon2id Rationale
 
@@ -338,7 +353,7 @@ For multi-region, high-availability cluster deployments requiring multi-node hor
 
 CipherDrop implements strict supply-chain security hygiene:
 - **Automated Dependabot Monitoring**: Weekly automated vulnerability and pull-request scanning configured via [.github/dependabot.yml](.github/dependabot.yml).
-- **Zero Known Vulnerabilities**: Verified clean status across all 368 production and developer dependencies via `npm audit`.
+- **Zero Known Vulnerabilities**: `npm audit` reports 0 known vulnerabilities across the full dependency tree as of the last run — re-verify locally with `npm audit`, since this count drifts with every dependency bump and a hardcoded number here would go stale immediately.
 - **Deterministic Dependency Pinning**: Lockfile validation via `package-lock.json` ensuring tamper-proof builds.
 
 ---
@@ -382,8 +397,27 @@ npm start
 CipherDrop includes a comprehensive test suite covering WebCrypto primitives, REST API routes, time-lock protocol gating, multi-recipient envelope handling, and WebSocket relays.
 
 ```bash
-npm test
+npm test              # 25 API-level unit + integration tests (Node's built-in test runner via tsx)
+npm run test:coverage # Same suite, instrumented with c8
+npm run test:browser  # Real-browser (Chromium/Playwright) verification — see below
 ```
+
+### Real-Browser Verification (Playwright)
+
+`npm test` exercises the crypto core directly in Node and the REST API via `fetch` against a spawned server — it never touches an actual browser, so browser-specific WebCrypto behavior (a known cross-engine pain point, especially on Safari) was previously unverified. [`tests/browser/zero-knowledge.spec.ts`](tests/browser/zero-knowledge.spec.ts) closes that gap: it drives the real UI in Chromium to create a secret, intercepts every network request/response to assert the plaintext never appears in a `POST /api/paste` body or response, confirms the master key only ever appears in the URI fragment of the generated share link, then opens that link and asserts the plaintext renders after client-side decryption.
+
+### Coverage (Cryptographic Core)
+
+Running `npm run test:coverage` against `src/crypto/webcrypto.ts` — the module responsible for every encryption/decryption/key-wrapping operation — reports:
+
+```
+Statements   : 98.79% ( 657/665 )
+Branches     : 79.1%  ( 53/67 )
+Functions    : 100%   ( 17/17 )
+Lines        : 98.79% ( 657/665 )
+```
+
+**Known limitation**: `server/index.js` and `server/storage.js` are exercised by the E2E/time-lock suites through a spawned child process (`tests/e2e_integration.test.js`), and `c8`'s coverage instrumentation does not currently attach to that subprocess in this environment, so server-side statement coverage isn't numerically reported — the routes are still functionally tested (see the 17 E2E + time-lock cases below), just not coverage-instrumented yet. Wiring that up (e.g. via `c8`'s `--all` mode with an in-process server harness instead of `child_process.spawn`) is a tracked follow-up rather than a claim we're making today.
 
 ### Automated Test Breakdown (25/25 Passing)
 

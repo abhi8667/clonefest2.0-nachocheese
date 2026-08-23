@@ -1,48 +1,22 @@
-# Ignore server files for safety
-.htaccess
-.htpasswd
-cfg/*
-!cfg/conf.sample.php
-!cfg/.htaccess
+# Dependencies
+node_modules/
 
-# Ignore data/
-/data/
+# Build output
+dist/
 
-# Ignore PhpDoc
-doc/*
-!doc/*.md
-
-# Ignore vendor dir of Composer except PHP files
-vendor/*.*
-vendor/*/*.*
-vendor/*/*/*.*
-vendor/*/*/*/*.*
-vendor/*/*/*/*/*.*
-vendor/*/*/*/*/*/*.*
-vendor/**/LICENSE
-vendor/**/test
-vendor/**/tst
-vendor/**/tests
-vendor/**/build_phar.php
-!vendor/**/*.php
-vendor/bin/**
-
-# Ignore local node modules, unit testing logs, api docs and IDE project files
-js/node_modules/
-js/mocha-results.xml
-js/test.log
-tst/log/
-tst/ConfigurationCombinationsTest.php
-tst/.phpunit.result.cache
-.settings
-.buildpath
-.project
-.phpdoc
-.externalToolBuilders
-node_modules
-dist
+# Local runtime data
 data/
 *.db
 *.db-wal
 *.db-shm
+
+# Test / coverage artifacts
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Editor / OS
 .DS_Store

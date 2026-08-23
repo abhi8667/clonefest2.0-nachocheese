@@ -15,6 +15,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { generateMasterKey, encryptSecret, decryptSecret } from '../crypto/webcrypto';
+import { FeatureHighlights } from './FeatureHighlights';
 
 interface IncidentWarRoomProps {
   initialRoomId?: string;
@@ -378,6 +379,16 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
         </div>
 
       </div>
+
+      <FeatureHighlights
+        title="War Room Security"
+        cards={[
+          { icon: <Radio className="w-5 h-5" />, title: 'Blind WebSocket Relay', description: 'Server relays only encrypted frames. Zero plaintext is stored or logged at any point.' },
+          { icon: <ShieldAlert className="w-5 h-5" />, title: 'Emergency Nuke', description: 'One-click broadcast signal that instantly zeroizes all peer memory and destroys the room.' },
+          { icon: <Users className="w-5 h-5" />, title: 'Live Peer Presence', description: 'Real-time connected participant counter with automatic cleanup on disconnect.' },
+          { icon: <Lock className="w-5 h-5" />, title: 'Zero Server Storage', description: 'All room state exists purely in-memory. No persistence, no logs, no forensic artifacts.' },
+        ]}
+      />
 
     </div>
   );

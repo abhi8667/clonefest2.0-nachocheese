@@ -474,3 +474,17 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   Zero-Knowledge Mode: ACTIVE (Server never receives keys)`);
   console.log(`=================================================\n`);
 });
+
+// Graceful shutdown: stop accepting new connections, close the WS relay,
+// and let in-flight requests finish before exiting.
+function shutdown(signal) {
+  console.log(`\n[${signal}] Shutting down gracefully...`);
+  clearInterval(janitorInterval);
+  wss.clients.forEach((client) => client.close(1001, 'Server shutting down'));
+  server.close(() => process.exit(0));
+  // Force-exit if connections don't close within 5s.
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

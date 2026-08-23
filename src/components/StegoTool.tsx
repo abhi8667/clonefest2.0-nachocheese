@@ -22,6 +22,7 @@ import {
   generateProceduralCarrierImage 
 } from '../crypto/steganography';
 import { DecryptedSecret } from '../types';
+import { FeatureHighlights } from './FeatureHighlights';
 
 export const StegoTool: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'embed' | 'extract'>('embed');
@@ -425,6 +426,16 @@ export const StegoTool: React.FC = () => {
 
         </div>
       )}
+
+      <FeatureHighlights
+        title="Steganography Capabilities"
+        cards={[
+          { icon: <ImageIcon className="w-5 h-5" />, title: 'Bypasses DPI Firewalls', description: 'Credentials travel disguised as innocent PNG images past Deep Packet Inspection systems.' },
+          { icon: <Lock className="w-5 h-5" />, title: 'LSB Pixel Injection', description: 'Encrypted payloads are embedded in the Least Significant Bits of pixel color channels.' },
+          { icon: <FileCheck className="w-5 h-5" />, title: 'Visually Identical', description: 'Output images are perceptually indistinguishable from the original carrier image.' },
+          { icon: <Sparkles className="w-5 h-5" />, title: 'Client-Side Only', description: 'All encoding and decoding happens in browser memory. No server involvement whatsoever.' },
+        ]}
+      />
 
     </div>
   );

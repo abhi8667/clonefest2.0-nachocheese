@@ -21,6 +21,7 @@ import {
   decryptInboundDrop 
 } from '../crypto/webcrypto';
 import { InboundDrop, DecryptedSecret } from '../types';
+import { FeatureHighlights } from './FeatureHighlights';
 
 interface RequestSecretDropProps {
   initialDropId?: string;
@@ -369,9 +370,18 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
               </p>
             </div>
           )}
-
         </div>
       )}
+
+      <FeatureHighlights
+        title="Inbound Drop Security"
+        cards={[
+          { icon: <Lock className="w-5 h-5" />, title: 'End-to-End Encrypted', description: 'RSA-OAEP hybrid encryption ensures only the requester can decrypt submitted secrets.' },
+          { icon: <KeyRound className="w-5 h-5" />, title: 'Zero Pre-Shared Keys', description: 'No shared passwords or prior key exchange required between requester and submitter.' },
+          { icon: <ShieldCheck className="w-5 h-5" />, title: 'Client-Side Keypair', description: 'RSA-OAEP 2048-bit keypair generated entirely in browser memory. Private key never leaves.' },
+          { icon: <Clock className="w-5 h-5" />, title: 'Auto-Expiring Links', description: 'Drop links automatically expire after the configured TTL. One-time use enforced.' },
+        ]}
+      />
 
     </div>
   );

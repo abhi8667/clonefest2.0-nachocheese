@@ -16,14 +16,11 @@ indent_style = tab
 indent_style = space
 indent_size = 4
 
-[*.json]
+[*.{ts,tsx}]
 indent_style = space
-indent_size = 4
+indent_size = 2
 
-[*.jsonld]
-indent_style = tab
-
-[*.php]
+[*.json]
 indent_style = space
 indent_size = 4
 
