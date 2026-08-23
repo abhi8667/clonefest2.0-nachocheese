@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 const SNIPPETS = {
-  curl: `# 1. Post pre-encrypted AES-256-GCM ciphertext to CipherDrop API
+  curl: `# 1. Post pre-encrypted AES-256-GCM ciphertext (with optional Time-Lock)
 curl -X POST https://your-cipherdrop.com/api/paste \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -22,17 +22,18 @@ curl -X POST https://your-cipherdrop.com/api/paste \\
       "adata": "cipherdrop-v2:code:1"
     },
     "expireInSeconds": 86400,
-    "burnAfterReading": true,
-    "openDiscussion": false
+    "burnAfterReading": false,
+    "timeLockEnabled": true,
+    "unlockAt": "2026-09-01T12:00:00.000Z"
   }'
 
-# 2. Retrieve blind ciphertext
-curl https://your-cipherdrop.com/api/paste/3a8f9c1b7e4d021f`,
+# 2. Retrieve ciphertext (Returns HTTP 423 Locked before unlockAt, HTTP 200 after)
+curl -i https://your-cipherdrop.com/api/paste/3a8f9c1b7e4d021f`,
 
   javascript: `// Sovereign Zero-Knowledge Client-Side Encryption in JS / Node
 import crypto from 'crypto';
 
-async function createCipherDropSecret(plainText) {
+async function createCipherDropSecret(plainText, unlockDateUtc = null) {
   // 1. Generate 256-bit AES master key
   const masterKey = crypto.randomBytes(32);
   const iv = crypto.randomBytes(12);
@@ -53,7 +54,9 @@ async function createCipherDropSecret(plainText) {
         iv: iv.toString('base64url')
       },
       expireInSeconds: 86400,
-      burnAfterReading: true
+      burnAfterReading: true,
+      timeLockEnabled: Boolean(unlockDateUtc),
+      unlockAt: unlockDateUtc || null
     })
   });
   
@@ -222,13 +225,13 @@ export const ApiCliHub: React.FC = () => {
               <tr>
                 <td className="py-2.5 text-emerald-400 font-bold">POST</td>
                 <td className="py-2.5 text-slate-100">/api/paste</td>
-                <td className="py-2.5 text-slate-400">Stores blind ciphertext payload</td>
+                <td className="py-2.5 text-slate-400">Stores blind ciphertext payload (supports optional Time-Lock)</td>
                 <td className="py-2.5 text-emerald-400">Zero-Knowledge</td>
               </tr>
               <tr>
                 <td className="py-2.5 text-sky-400 font-bold">GET</td>
                 <td className="py-2.5 text-slate-100">/api/paste/:id</td>
-                <td className="py-2.5 text-slate-400">Atomic read and decrement / auto burn</td>
+                <td className="py-2.5 text-slate-400">Atomic read (returns 423 Locked if time-locked) / auto burn</td>
                 <td className="py-2.5 text-emerald-400">Zero-Knowledge</td>
               </tr>
               <tr>

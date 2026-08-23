@@ -10,10 +10,10 @@
     "build": "tsc && vite build",
     "start": "NODE_ENV=production node server/index.js",
     "preview": "vite preview",
-    "test": "node --test tests/crypto.test.js"
+    "test": "node --test --test-concurrency=1 tests/crypto.test.js tests/e2e_integration.test.js tests/time_lock.test.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.1",
+    "better-sqlite3": "^13.0.3",
     "concurrently": "^9.1.2",
     "cors": "^2.8.5",
     "express": "^4.21.2",

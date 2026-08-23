@@ -48,6 +48,14 @@ In Multi-Recipient Envelope mode:
 ### 4. Ephemeral Memory Hygiene
 Client-side memory buffers containing raw key material, decrypted strings, and binary file buffers are explicitly scrubbed and overwritten with pseudorandom bytes (`crypto.getRandomValues`) upon component unmount or view teardown.
 
+### 5. Server-Assisted Time-Lock Release & Security Boundary
+When Time-Lock Secrets are enabled:
+- Secrets are encrypted client-side using random AES-256-GCM keys. The plaintext and master decryption key are never transmitted to the server.
+- The server stores the blind ciphertext associated with an authoritative `unlock_at` timestamp (in UTC).
+- Prior to `unlock_at`, the API strictly refuses retrieval requests and responds with `HTTP 423 Locked`, returning **zero ciphertext**. View counters are not decremented and burn-after-reading is not triggered.
+- Client-side countdowns provide responsive UX, but server-side UTC time is the authoritative authorization boundary.
+- *Limitation & Architecture Note*: This initial implementation provides server-assisted protocol gating rather than a trustless cryptographic time-lock against a compromised server. The release layer is isolated (`TimeLockPolicy`) to allow seamless future upgrade to distributed threshold release or verifiable time-lock puzzles.
+
 ---
 
 ## Core Protocol and Cryptographic Workflows
@@ -159,6 +167,13 @@ For collecting credentials from external clients without requiring prior key exc
 - High-density QR code generator enabling direct optical transfer to mobile devices and air-gapped workstations.
 - Offline Cryptographic Sandbox allowing encryption, decryption, and hash verification with zero network dependencies.
 
+### 9. Time-Lock Secrets (Scheduled Release)
+- Restricts decryption access until a specified release date and time (stored in UTC).
+- The client encrypts the secret normally via WebCrypto; the server enforces the time-lock gate before serving ciphertext.
+- Pre-release requests return `HTTP 423 Locked` with zero ciphertext.
+- Compatible with all core features: single-recipient links, multi-recipient envelopes, password protection, and burn-after-reading (burn is executed only upon post-unlock retrieval).
+- Interactive client-side countdown and timezone preview.
+
 ---
 
 ## REST API and WebSocket Reference
@@ -184,7 +199,9 @@ Content-Type: application/json
   "expireInSeconds": 86400,
   "burnAfterReading": false,
   "maxViews": -1,
-  "openDiscussion": false
+  "openDiscussion": false,
+  "timeLockEnabled": true,
+  "unlockAt": "2026-09-01T12:00:00.000Z"
 }
 ```
 
@@ -192,6 +209,33 @@ Content-Type: application/json
 ```http
 GET /api/paste/:id
 GET /api/paste/:id?slot=:slotId
+```
+
+**Response (When Time-Locked):**
+```http
+HTTP/1.1 423 Locked
+Content-Type: application/json
+
+{
+  "error": "TIME_LOCKED",
+  "message": "This secret is time-locked and cannot be decrypted yet.",
+  "unlockAt": "2026-09-01T12:00:00.000Z",
+  "timeLockEnabled": true
+}
+```
+
+**Response (When Unlocked):**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "id": "4a1f8b3c9d2e0f1a",
+  "payload": { "v": 2, "ct": "...", "iv": "..." },
+  "expireAt": 1788264000,
+  "timeLockEnabled": true,
+  "unlockAt": "2026-09-01T12:00:00.000Z"
+}
 ```
 
 #### Creator Admin Telemetry

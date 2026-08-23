@@ -37,12 +37,19 @@ before(async () => {
   });
 
   // Wait for server to become responsive
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 150));
+  let ready = false;
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 200));
     try {
       const res = await fetch(`${BASE_URL}/api/health`);
-      if (res.ok) break;
+      if (res.ok) {
+        ready = true;
+        break;
+      }
     } catch (err) {}
+  }
+  if (!ready) {
+    throw new Error('Test server failed to start within timeout');
   }
 });
 

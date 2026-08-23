@@ -95,6 +95,13 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
     '# General Server Maintenance Notes\n- Scheduled OS update on Monday 02:00 UTC\n- Contact admin@example.com for queries.'
   );
 
+  // Time-Lock Secrets State (Server-Assisted Release)
+  const defaultUnlockDate = new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0];
+  const [timeLockEnabled, setTimeLockEnabled] = useState<boolean>(false);
+  const [unlockDate, setUnlockDate] = useState<string>(defaultUnlockDate);
+  const [unlockTime, setUnlockTime] = useState<string>('12:00');
+  const [unlockTimezone, setUnlockTimezone] = useState<'UTC' | 'local'>('UTC');
+
   // UI status
   const [isEncrypting, setIsEncrypting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -118,7 +125,11 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [text, envEntries, formatter, language, attachment, expireOption, burnAfterReading, maxViews, openDiscussion, usePassword, password, useDuress, duressPassword, decoyText]);
+  }, [
+    text, envEntries, formatter, language, attachment, expireOption, burnAfterReading,
+    maxViews, openDiscussion, usePassword, password, useDuress, duressPassword, decoyText,
+    timeLockEnabled, unlockDate, unlockTime, unlockTimezone
+  ]);
 
   // Handle File Drag & Drop
   const handleFileDrop = (e: React.DragEvent) => {
@@ -181,6 +192,44 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
     setRecipients(recipients.map(r => (r.id === id ? { ...r, ...updates } : r)));
   };
 
+  // Time-Lock Helpers
+  const getUnlockIsoString = (): string | null => {
+    if (!timeLockEnabled || !unlockDate || !unlockTime) return null;
+    if (unlockTimezone === 'UTC') {
+      return `${unlockDate}T${unlockTime}:00.000Z`;
+    } else {
+      const [year, month, day] = unlockDate.split('-').map(Number);
+      const [hours, minutes] = unlockTime.split(':').map(Number);
+      const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+      return localDate.toISOString();
+    }
+  };
+
+  const getUnlockPreview = () => {
+    const iso = getUnlockIsoString();
+    if (!iso) return null;
+    const target = new Date(iso).getTime();
+    const now = Date.now();
+    const diffSec = Math.floor((target - now) / 1000);
+    if (isNaN(target) || diffSec <= 0) {
+      return { valid: false, message: 'Unlock date & time must be in the future.' };
+    }
+    const d = Math.floor(diffSec / 86400);
+    const h = Math.floor((diffSec % 86400) / 3600);
+    const m = Math.floor((diffSec % 3600) / 60);
+    const formattedDuration = `${d > 0 ? `${d}d ` : ''}${h > 0 ? `${h}h ` : ''}${m}m`;
+    const dateObj = new Date(iso);
+    const utcString = dateObj.toUTCString();
+    const localString = dateObj.toLocaleString();
+    return {
+      valid: true,
+      iso,
+      utcString,
+      localString,
+      formattedDuration,
+    };
+  };
+
   // Main Submit Handler
   const handleCreateSecret = async () => {
     try {
@@ -223,10 +272,32 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         return;
       }
 
-      setIsEncrypting(true);
-
       const isBurn = burnAfterReading || expireOption === 'burn';
       const expireSec = getExpireSeconds(expireOption);
+
+      // Time-Lock Validation
+      let unlockIso: string | null = null;
+      if (timeLockEnabled) {
+        unlockIso = getUnlockIsoString();
+        if (!unlockIso) {
+          setErrorMessage('Please select a valid unlock date and time.');
+          return;
+        }
+        const unlockMs = new Date(unlockIso).getTime();
+        if (isNaN(unlockMs) || unlockMs <= Date.now()) {
+          setErrorMessage('Time-lock release time must be in the future.');
+          return;
+        }
+        if (expireSec !== 0) {
+          const expireMs = Date.now() + expireSec * 1000;
+          if (unlockMs >= expireMs) {
+            setErrorMessage('Time-lock unlock time must be earlier than the expiration (TTL) time.');
+            return;
+          }
+        }
+      }
+
+      setIsEncrypting(true);
 
       // Prepare decrypted payload
       const secretPayload: DecryptedSecret = {
@@ -271,6 +342,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
             burnAfterReading: false,
             maxViews: -1,
             openDiscussion: openDiscussion && !isBurn,
+            timeLockEnabled: Boolean(timeLockEnabled),
+            unlockAt: unlockIso,
           }),
         });
 
@@ -299,6 +372,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
           adminUrl,
           deleteToken: result.deleteToken,
           expireAt: result.expireAt,
+          timeLockEnabled: Boolean(timeLockEnabled),
+          unlockAt: result.unlockAt || unlockIso,
           recipientLinks,
         });
 
@@ -322,6 +397,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
             burnAfterReading: isBurn,
             maxViews: isBurn ? 1 : maxViews,
             openDiscussion: openDiscussion && !isBurn,
+            timeLockEnabled: Boolean(timeLockEnabled),
+            unlockAt: unlockIso,
           }),
         });
 
@@ -339,6 +416,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
           deleteToken: result.deleteToken,
           expireAt: result.expireAt,
           burnAfterReading: isBurn,
+          timeLockEnabled: Boolean(timeLockEnabled),
+          unlockAt: result.unlockAt || unlockIso,
         });
       }
 
@@ -858,6 +937,102 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
               )}
             </div>
           )}
+        </div>
+
+        {/* Time-Lock Secrets Card (Server-Assisted Release Gate) */}
+        <div className={`glass-panel p-4 rounded-2xl border transition-all md:col-span-2 ${
+          timeLockEnabled ? 'border-amber-500/40 bg-amber-950/10 shadow-lg shadow-amber-950/20' : 'border-white/10'
+        } space-y-4`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lock className={`w-4 h-4 ${timeLockEnabled ? 'text-amber-400' : 'text-slate-400'}`} />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono">Time-Lock Release Gate (Server-Assisted)</h3>
+            </div>
+            {timeLockEnabled && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
+                🔒 Time-Lock Active
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={timeLockEnabled}
+                onChange={(e) => setTimeLockEnabled(e.target.checked)}
+                className="rounded border-white/20 bg-obsidian-900 text-amber-500 focus:ring-amber-500/20"
+              />
+              <span className="font-semibold text-slate-200">Time-lock this secret (Cannot be decrypted/opened before a specified release date and time)</span>
+            </label>
+
+            {timeLockEnabled && (
+              <div className="pt-2 border-t border-white/5 space-y-3 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1 font-mono">Unlock Date</label>
+                    <input
+                      type="date"
+                      value={unlockDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setUnlockDate(e.target.value)}
+                      className="w-full bg-obsidian-900 border border-white/10 text-xs text-slate-200 rounded-lg p-2 font-mono focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1 font-mono">Unlock Time</label>
+                    <input
+                      type="time"
+                      value={unlockTime}
+                      onChange={(e) => setUnlockTime(e.target.value)}
+                      className="w-full bg-obsidian-900 border border-white/10 text-xs text-slate-200 rounded-lg p-2 font-mono focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1 font-mono">Timezone</label>
+                    <select
+                      value={unlockTimezone}
+                      onChange={(e) => setUnlockTimezone(e.target.value as 'UTC' | 'local')}
+                      className="w-full bg-obsidian-900 border border-white/10 text-xs text-slate-200 rounded-lg p-2 font-mono focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="UTC">UTC (Coordinated Universal Time)</option>
+                      <option value="local">Local Time ({Intl.DateTimeFormat().resolvedOptions().timeZone || 'Browser'})</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Unlock Preview & Gate Notice */}
+                {(() => {
+                  const preview = getUnlockPreview();
+                  if (!preview) return null;
+                  if (!preview.valid) {
+                    return (
+                      <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono">
+                        ⚠️ {preview.message}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="p-3 bg-obsidian-950 rounded-xl border border-amber-500/20 text-xs space-y-1 font-mono">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-amber-300 font-bold flex items-center gap-1.5">
+                          🔒 Unlocks: {preview.utcString}
+                        </span>
+                        <span className="text-slate-400 text-[11px]">
+                          Time remaining: <span className="text-amber-400 font-bold">{preview.formattedDuration}</span>
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-sans">
+                        Server-assisted gate: The CipherDrop API will refuse normal retrieval and return <code className="text-amber-300 font-mono">HTTP 423 Locked</code> until this release timestamp.
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
         </div>
 
       </div>

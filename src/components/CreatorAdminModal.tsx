@@ -34,6 +34,8 @@ interface AdminData {
   expireAt: number;
   burnAfterReading: boolean;
   createdAt: number;
+  timeLockEnabled?: boolean;
+  unlockAt?: string | null;
   envelopes: SlotStatus[];
 }
 
@@ -195,6 +197,19 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Time-Lock Status Alert */}
+            {data.timeLockEnabled && data.unlockAt && (
+              <div className="p-3 bg-amber-950/20 rounded-xl border border-amber-500/30 text-xs font-mono flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-amber-300">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  <span>Time-Locked until: <strong>{new Date(data.unlockAt).toUTCString()}</strong></span>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {new Date(data.unlockAt).getTime() > Date.now() ? '🔒 Locked' : '🔓 Unlocked'}
+                </span>
+              </div>
+            )}
 
             {/* Recipient Slots Table */}
             <div className="space-y-2">
