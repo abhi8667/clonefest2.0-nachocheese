@@ -16,17 +16,19 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-const DB_PATH = path.join(DATA_DIR, 'cipherdrop.db');
+const DB_PATH = process.env.DB_PATH || path.join(DATA_DIR, 'cipherdrop.db');
 
 export class StorageEngine {
   constructor() {
     this._timeOffset = 0; // For deterministic time testing
     try {
       this.db = new Database(DB_PATH);
-      this.db.pragma('journal_mode = WAL');
-      this.db.pragma('synchronous = NORMAL');
-      this.isMemory = false;
-      console.log('⚡ [Storage] SQLite WAL database initialized at', DB_PATH);
+      if (DB_PATH !== ':memory:') {
+        this.db.pragma('journal_mode = WAL');
+        this.db.pragma('synchronous = NORMAL');
+      }
+      this.isMemory = DB_PATH === ':memory:';
+      console.log('⚡ [Storage] SQLite database initialized at', DB_PATH);
     } catch (err) {
       console.warn('⚠️ [Storage] Could not initialize file SQLite, falling back to in-memory store:', err.message);
       this.db = new Database(':memory:');

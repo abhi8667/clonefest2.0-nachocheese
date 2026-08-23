@@ -25,8 +25,8 @@ let serverProcess = null;
 
 before(async () => {
   serverProcess = spawn('node', ['server/index.js'], {
-    stdio: 'pipe',
-    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'test', ENABLE_TEST_ENDPOINTS: '1' },
+    stdio: 'inherit',
+    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'test', ENABLE_TEST_ENDPOINTS: '1', DB_PATH: ':memory:' },
   });
 
   // Wait for server to become responsive
