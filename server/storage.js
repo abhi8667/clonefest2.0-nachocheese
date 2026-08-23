@@ -6,7 +6,22 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+
+/**
+ * Constant-time string comparison helper to prevent side-channel timing attacks
+ */
+function safeCompare(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  if (bufA.length !== bufB.length) {
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -288,7 +303,7 @@ export class StorageEngine {
     const paste = this.db.prepare(`SELECT * FROM pastes WHERE id = ?`).get(id);
     if (!paste) return null;
 
-    if (!paste.admin_token_hash || paste.admin_token_hash !== adminTokenHash) {
+    if (!paste.admin_token_hash || !safeCompare(paste.admin_token_hash, adminTokenHash)) {
       return { error: 'Invalid or unauthorized admin token.', status: 403 };
     }
 
@@ -318,7 +333,7 @@ export class StorageEngine {
     const paste = this.db.prepare(`SELECT * FROM pastes WHERE id = ?`).get(id);
     if (!paste) return null;
 
-    if (!paste.admin_token_hash || paste.admin_token_hash !== adminTokenHash) {
+    if (!paste.admin_token_hash || !safeCompare(paste.admin_token_hash, adminTokenHash)) {
       return { error: 'Invalid or unauthorized admin token.', status: 403 };
     }
 
@@ -348,13 +363,13 @@ export class StorageEngine {
    */
   deletePaste(id, deleteToken) {
     if (deleteToken) {
-      const stmt = this.db.prepare(`DELETE FROM pastes WHERE id = ? AND delete_token = ?`);
-      const result = stmt.run(id, deleteToken);
-      if (result.changes > 0) {
-        this.db.prepare(`DELETE FROM comments WHERE paste_id = ?`).run(id);
-        return true;
+      const paste = this.db.prepare(`SELECT delete_token FROM pastes WHERE id = ?`).get(id);
+      if (!paste || !safeCompare(paste.delete_token, deleteToken)) {
+        return false;
       }
-      return false;
+      this.db.prepare(`DELETE FROM pastes WHERE id = ?`).run(id);
+      this.db.prepare(`DELETE FROM comments WHERE paste_id = ?`).run(id);
+      return true;
     }
 
     const stmt = this.db.prepare(`DELETE FROM pastes WHERE id = ?`);
