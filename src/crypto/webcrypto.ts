@@ -471,3 +471,196 @@ export async function decryptInboundDrop(
 
   return JSON.parse(decoder.decode(decryptedPayload));
 }
+
+/**
+ * Compute SHA-256 hash of a string (returns Base64URL)
+ */
+export async function hashSha256(str: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return bytesToBase64Url(new Uint8Array(hashBuffer));
+}
+
+export interface RecipientSlotConfig {
+  label: string;
+  burnOnRead?: boolean;
+  password?: string;
+}
+
+export interface MultiRecipientGenerated {
+  payload: EncryptedPayload;
+  envelopes: Array<{
+    slotId: string;
+    label: string;
+    wrappedKey: string;
+    iv: string;
+    salt?: string;
+    burned: boolean;
+    readAt: number | null;
+    burnOnRead: boolean;
+  }>;
+  adminToken: string;
+  adminTokenHash: string;
+  recipientSecrets: Array<{
+    slotId: string;
+    label: string;
+    slotKey: string;
+    burnOnRead: boolean;
+    hasPassword?: boolean;
+  }>;
+}
+
+/**
+ * Encrypt Secret for Multiple Recipients using Envelope Encryption
+ */
+export async function encryptMultiRecipientSecret(
+  data: DecryptedResult,
+  recipients: RecipientSlotConfig[],
+  options?: {
+    duressPassword?: string;
+    decoyData?: DecryptedResult;
+    authenticatedMeta?: string;
+  }
+): Promise<MultiRecipientGenerated> {
+  const encoder = new TextEncoder();
+  
+  // 1. Generate Master Content Encryption Key (CEK)
+  const masterCEK = generateMasterKey();
+
+  // 2. Encrypt primary (and optional decoy) payload with master CEK
+  const payload = await encryptSecret(data, masterCEK, {
+    duressPassword: options?.duressPassword,
+    decoyData: options?.decoyData,
+    authenticatedMeta: options?.authenticatedMeta || 'cipherdrop-v2-envelope',
+  });
+
+  // 3. Generate Creator Admin Revocation Token
+  const adminToken = generateMasterKey();
+  const adminTokenHash = await hashSha256(adminToken);
+
+  const envelopes: MultiRecipientGenerated['envelopes'] = [];
+  const recipientSecrets: MultiRecipientGenerated['recipientSecrets'] = [];
+
+  // 4. Wrap master CEK for each recipient
+  for (let i = 0; i < recipients.length; i++) {
+    const r = recipients[i];
+    const slotBytes = new Uint8Array(8);
+    crypto.getRandomValues(slotBytes);
+    const slotId = bytesToBase64Url(slotBytes);
+    const slotKey = generateMasterKey();
+
+    const slotSalt = new Uint8Array(16);
+    crypto.getRandomValues(slotSalt);
+    const slotIv = new Uint8Array(12);
+    crypto.getRandomValues(slotIv);
+
+    const slotAesKey = await deriveAesKey(slotKey, r.password, slotSalt, 600000);
+    const cekPlaintext = encoder.encode(masterCEK);
+    const slotAdata = encoder.encode(`cipherdrop-envelope:${slotId}`);
+
+    const wrappedKeyBuffer = await crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv: slotIv as unknown as BufferSource,
+        additionalData: slotAdata as unknown as BufferSource,
+        tagLength: 128,
+      },
+      slotAesKey,
+      cekPlaintext as unknown as BufferSource
+    );
+
+    envelopes.push({
+      slotId,
+      label: r.label || `Recipient ${i + 1}`,
+      wrappedKey: bytesToBase64Url(new Uint8Array(wrappedKeyBuffer)),
+      iv: bytesToBase64Url(slotIv),
+      salt: bytesToBase64Url(slotSalt),
+      burned: false,
+      readAt: null,
+      burnOnRead: Boolean(r.burnOnRead),
+    });
+
+    recipientSecrets.push({
+      slotId,
+      label: r.label || `Recipient ${i + 1}`,
+      slotKey,
+      burnOnRead: Boolean(r.burnOnRead),
+      hasPassword: Boolean(r.password && r.password.trim().length > 0),
+    });
+  }
+
+  return {
+    payload,
+    envelopes,
+    adminToken,
+    adminTokenHash,
+    recipientSecrets,
+  };
+}
+
+/**
+ * Unwrap master CEK from a recipient envelope slot
+ */
+export async function unwrapRecipientEnvelope(
+  envelope: {
+    slotId: string;
+    wrappedKey: string;
+    iv: string;
+    salt?: string;
+  },
+  slotKey: string,
+  password?: string
+): Promise<string> {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+
+  const slotSaltBytes = envelope.salt ? base64UrlToBytes(envelope.salt) : new Uint8Array(16);
+  const slotIvBytes = base64UrlToBytes(envelope.iv);
+  const wrappedKeyBytes = base64UrlToBytes(envelope.wrappedKey);
+  const slotAdata = encoder.encode(`cipherdrop-envelope:${envelope.slotId}`);
+
+  const slotAesKey = await deriveAesKey(slotKey, password, slotSaltBytes, 600000);
+
+  const unwrappedBuffer = await crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: slotIvBytes as unknown as BufferSource,
+      additionalData: slotAdata as unknown as BufferSource,
+      tagLength: 128,
+    },
+    slotAesKey,
+    wrappedKeyBytes as unknown as BufferSource
+  );
+
+  return decoder.decode(unwrappedBuffer);
+}
+
+/**
+ * Decrypt a Multi-Recipient Secret using a Recipient Slot Envelope
+ */
+export async function decryptMultiRecipientSecret(
+  payload: EncryptedPayload,
+  envelope: {
+    slotId: string;
+    wrappedKey: string;
+    iv: string;
+    salt?: string;
+  },
+  slotKey: string,
+  password?: string
+): Promise<DecryptedResult> {
+  // 1. Unwrap the master CEK from the envelope using slotKey (+ optional slot passphrase)
+  const masterCEK = await unwrapRecipientEnvelope(envelope, slotKey, password);
+
+  // 2. Decrypt the secret payload using master CEK
+  try {
+    return await decryptSecret(payload, masterCEK);
+  } catch (err) {
+    if (password) {
+      return await decryptSecret(payload, masterCEK, password);
+    }
+    throw err;
+  }
+}
+

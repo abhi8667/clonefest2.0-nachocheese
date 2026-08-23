@@ -45,7 +45,10 @@ export class StorageEngine {
         views_remaining INTEGER DEFAULT -1,
         open_discussion INTEGER DEFAULT 0,
         delete_token TEXT NOT NULL,
-        created_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL,
+        is_multi_recipient INTEGER DEFAULT 0,
+        envelopes TEXT,
+        admin_token_hash TEXT
       );
 
       CREATE TABLE IF NOT EXISTS comments (
@@ -71,10 +74,15 @@ export class StorageEngine {
       CREATE INDEX IF NOT EXISTS idx_comments_paste ON comments(paste_id);
       CREATE INDEX IF NOT EXISTS idx_drops_expire ON inbound_drops(expire_at);
     `);
+
+    // Ensure backwards compatibility with any existing DB without recreating
+    try { this.db.exec(`ALTER TABLE pastes ADD COLUMN is_multi_recipient INTEGER DEFAULT 0;`); } catch (_) {}
+    try { this.db.exec(`ALTER TABLE pastes ADD COLUMN envelopes TEXT;`); } catch (_) {}
+    try { this.db.exec(`ALTER TABLE pastes ADD COLUMN admin_token_hash TEXT;`); } catch (_) {}
   }
 
   /**
-   * Store a new blind encrypted paste
+   * Store a new blind encrypted paste (Standard or Multi-Recipient)
    */
   createPaste(id, payload, options) {
     const {
@@ -83,6 +91,9 @@ export class StorageEngine {
       maxViews = -1,
       openDiscussion = false,
       deleteToken,
+      isMultiRecipient = false,
+      envelopes = null,
+      adminTokenHash = null,
     } = options;
 
     const now = Math.floor(Date.now() / 1000);
@@ -90,8 +101,11 @@ export class StorageEngine {
     const viewsRemaining = burnAfterReading ? 1 : maxViews;
 
     const stmt = this.db.prepare(`
-      INSERT INTO pastes (id, payload, expire_at, burn_after_reading, views_remaining, open_discussion, delete_token, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO pastes (
+        id, payload, expire_at, burn_after_reading, views_remaining, open_discussion, delete_token, created_at,
+        is_multi_recipient, envelopes, admin_token_hash
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -102,7 +116,10 @@ export class StorageEngine {
       viewsRemaining,
       openDiscussion ? 1 : 0,
       deleteToken,
-      now
+      now,
+      isMultiRecipient ? 1 : 0,
+      envelopes ? (typeof envelopes === 'string' ? envelopes : JSON.stringify(envelopes)) : null,
+      adminTokenHash || null
     );
 
     return { id, expireAt, deleteToken };
@@ -110,8 +127,9 @@ export class StorageEngine {
 
   /**
    * Read paste atomically. Decrements view count and burns if exhausted.
+   * If slotId is provided on multi-recipient paste, updates/burns specific recipient envelope.
    */
-  getPaste(id) {
+  getPaste(id, slotId = null) {
     const now = Math.floor(Date.now() / 1000);
 
     const tx = this.db.transaction(() => {
@@ -128,12 +146,53 @@ export class StorageEngine {
 
       let shouldDelete = false;
       let remaining = paste.views_remaining;
+      let envelopes = paste.envelopes ? JSON.parse(paste.envelopes) : [];
+      let activeSlot = null;
 
-      if (paste.burn_after_reading === 1 || remaining === 1) {
-        shouldDelete = true;
-      } else if (remaining > 1) {
-        remaining -= 1;
-        this.db.prepare(`UPDATE pastes SET views_remaining = ? WHERE id = ?`).run(remaining, id);
+      if (paste.is_multi_recipient === 1 && envelopes.length > 0) {
+        if (slotId) {
+          const slotIndex = envelopes.findIndex(e => e.slotId === slotId);
+          if (slotIndex === -1) {
+            return { error: 'Recipient slot revoked or does not exist.', status: 404 };
+          }
+
+          const slot = envelopes[slotIndex];
+          if (slot.burned) {
+            return {
+              error: slot.revoked
+                ? 'This recipient access link was revoked by the creator.'
+                : 'This recipient secret was already burned after its first read.',
+              status: 410,
+            };
+          }
+
+          // Record read timestamp
+          slot.readAt = slot.readAt || now;
+
+          // Check if slot should burn on read
+          if (slot.burnOnRead || paste.burn_after_reading === 1) {
+            slot.burned = true;
+          }
+
+          activeSlot = { ...slot };
+          envelopes[slotIndex] = slot;
+
+          // Update database with updated slot state
+          this.db.prepare(`UPDATE pastes SET envelopes = ? WHERE id = ?`).run(JSON.stringify(envelopes), id);
+
+          // If all recipient slots have now burned, destroy the whole paste
+          if (envelopes.every(e => e.burned)) {
+            shouldDelete = true;
+          }
+        }
+      } else {
+        // Standard paste single-view / view-count decrement logic
+        if (paste.burn_after_reading === 1 || remaining === 1) {
+          shouldDelete = true;
+        } else if (remaining > 1) {
+          remaining -= 1;
+          this.db.prepare(`UPDATE pastes SET views_remaining = ? WHERE id = ?`).run(remaining, id);
+        }
       }
 
       if (shouldDelete) {
@@ -156,7 +215,10 @@ export class StorageEngine {
 
       return {
         id: paste.id,
+        isMultiRecipient: paste.is_multi_recipient === 1,
         payload: JSON.parse(paste.payload),
+        envelopes: paste.is_multi_recipient === 1 ? envelopes : undefined,
+        activeSlot: activeSlot || undefined,
         expireAt: paste.expire_at,
         burnAfterReading: paste.burn_after_reading === 1,
         viewsRemaining: remaining,
@@ -169,6 +231,66 @@ export class StorageEngine {
 
     return tx();
   }
+
+  /**
+   * Get Creator Admin Status & Telemetry
+   */
+  getAdminStatus(id, adminTokenHash) {
+    const paste = this.db.prepare(`SELECT * FROM pastes WHERE id = ?`).get(id);
+    if (!paste) return null;
+
+    if (!paste.admin_token_hash || paste.admin_token_hash !== adminTokenHash) {
+      return { error: 'Invalid or unauthorized admin token.', status: 403 };
+    }
+
+    const envelopes = paste.envelopes ? JSON.parse(paste.envelopes) : [];
+    return {
+      id: paste.id,
+      isMultiRecipient: paste.is_multi_recipient === 1,
+      expireAt: paste.expire_at,
+      burnAfterReading: paste.burn_after_reading === 1,
+      createdAt: paste.created_at,
+      envelopes: envelopes.map(e => ({
+        slotId: e.slotId,
+        label: e.label,
+        burned: Boolean(e.burned),
+        readAt: e.readAt || null,
+        burnOnRead: Boolean(e.burnOnRead),
+      })),
+    };
+  }
+
+  /**
+   * Revoke an individual recipient envelope slot
+   */
+  revokeSlot(id, slotId, adminTokenHash) {
+    const paste = this.db.prepare(`SELECT * FROM pastes WHERE id = ?`).get(id);
+    if (!paste) return null;
+
+    if (!paste.admin_token_hash || paste.admin_token_hash !== adminTokenHash) {
+      return { error: 'Invalid or unauthorized admin token.', status: 403 };
+    }
+
+    const envelopes = paste.envelopes ? JSON.parse(paste.envelopes) : [];
+    const slotIndex = envelopes.findIndex(e => e.slotId === slotId);
+    if (slotIndex === -1) {
+      return { error: 'Slot not found or already removed.', status: 404 };
+    }
+
+    envelopes[slotIndex].burned = true;
+    envelopes[slotIndex].revoked = true;
+
+    // If all slots are now burned, delete the paste entirely
+    const allBurned = envelopes.every(e => e.burned);
+    if (allBurned) {
+      this.deletePaste(id);
+      return { success: true, message: 'All slots burned/revoked. Secret destroyed.', allBurned: true };
+    }
+
+    this.db.prepare(`UPDATE pastes SET envelopes = ? WHERE id = ?`).run(JSON.stringify(envelopes), id);
+    return { success: true, message: 'Recipient slot successfully revoked.', allBurned: false };
+  }
+
 
   /**
    * Delete paste and its associated comments

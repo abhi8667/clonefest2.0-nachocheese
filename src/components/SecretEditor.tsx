@@ -19,19 +19,17 @@ import {
   X,
   UploadCloud,
   File,
-  AlertCircle
+  AlertCircle,
+  Users,
+  Link as LinkIcon,
+  ShieldCheck,
+  UserCheck
 } from 'lucide-react';
-import { SecretFormatter, FileAttachment, DecryptedSecret } from '../types';
-import { generateMasterKey, encryptSecret } from '../crypto/webcrypto';
+import { SecretFormatter, FileAttachment, DecryptedSecret, CreatedSecretResult } from '../types';
+import { generateMasterKey, encryptSecret, encryptMultiRecipientSecret } from '../crypto/webcrypto';
 
 interface SecretEditorProps {
-  onSecretCreated: (result: {
-    pasteId: string;
-    masterKey: string;
-    deleteToken: string;
-    expireAt: number;
-    burnAfterReading: boolean;
-  }) => void;
+  onSecretCreated: (result: CreatedSecretResult) => void;
 }
 
 const LANGUAGES = [
@@ -50,7 +48,23 @@ const LANGUAGES = [
   { id: 'java', label: 'Java' },
 ];
 
+interface SlotEditorItem {
+  id: string;
+  label: string;
+  burnOnRead: boolean;
+  password: string;
+}
+
 export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) => {
+  // Sharing Mode: Standard (Single Key) vs Multi-Recipient Envelopes
+  const [sharingMode, setSharingMode] = useState<'standard' | 'multi'>('standard');
+
+  // Multi-Recipient Slots State
+  const [recipients, setRecipients] = useState<SlotEditorItem[]>([
+    { id: '1', label: 'Alice', burnOnRead: true, password: '' },
+    { id: '2', label: 'Bob', burnOnRead: true, password: '' },
+  ]);
+
   // Mode & Content State
   const [formatter, setFormatter] = useState<SecretFormatter>('code');
   const [language, setLanguage] = useState<string>('javascript');
@@ -84,6 +98,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
   // UI status
   const [isEncrypting, setIsEncrypting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
 
   // Auto-convert ENV entries to text when in env mode
   const getCompiledEnvText = () => {
@@ -146,6 +161,26 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
     }
   };
 
+  // Add a new recipient slot
+  const handleAddRecipient = () => {
+    const nextIdx = recipients.length + 1;
+    setRecipients([
+      ...recipients,
+      { id: String(Date.now()), label: `Recipient ${nextIdx}`, burnOnRead: true, password: '' },
+    ]);
+  };
+
+  // Remove a recipient slot
+  const handleRemoveRecipient = (id: string) => {
+    if (recipients.length <= 1) return;
+    setRecipients(recipients.filter(r => r.id !== id));
+  };
+
+  // Update a recipient slot
+  const handleUpdateRecipient = (id: string, updates: Partial<SlotEditorItem>) => {
+    setRecipients(recipients.map(r => (r.id === id ? { ...r, ...updates } : r)));
+  };
+
   // Main Submit Handler
   const handleCreateSecret = async () => {
     try {
@@ -160,9 +195,22 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         return;
       }
 
-      if (usePassword && !password.trim()) {
+      if (sharingMode === 'standard' && usePassword && !password.trim()) {
         setErrorMessage('Password protection is enabled. Please enter a password or disable the option.');
         return;
+      }
+
+      if (sharingMode === 'multi') {
+        if (recipients.length === 0) {
+          setErrorMessage('Please add at least one recipient for Multi-Recipient Envelope encryption.');
+          return;
+        }
+        for (const r of recipients) {
+          if (!r.label.trim()) {
+            setErrorMessage('All recipient slots must have a label or name.');
+            return;
+          }
+        }
       }
 
       if (useDuress && (!duressPassword.trim() || !decoyText.trim())) {
@@ -177,16 +225,16 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
 
       setIsEncrypting(true);
 
-      // 1. Generate ephemeral 256-bit symmetric master key in browser
-      const masterKey = generateMasterKey();
+      const isBurn = burnAfterReading || expireOption === 'burn';
+      const expireSec = getExpireSeconds(expireOption);
 
-      // 2. Prepare payload
+      // Prepare decrypted payload
       const secretPayload: DecryptedSecret = {
         text: content,
         formatter: formatter,
         language: formatter === 'code' ? language : undefined,
         attachment: attachment || undefined,
-        commentsAllowed: openDiscussion && !burnAfterReading,
+        commentsAllowed: openDiscussion && !isBurn,
       };
 
       const decoyPayload: DecryptedSecret | undefined = useDuress ? {
@@ -195,44 +243,104 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         commentsAllowed: false,
       } : undefined;
 
-      // 3. Encrypt payload client-side with AES-256-GCM
-      const isBurn = burnAfterReading || expireOption === 'burn';
-      const expireSec = getExpireSeconds(expireOption);
+      if (sharingMode === 'multi') {
+        // --- MULTI-RECIPIENT ENVELOPE ENCRYPTION ---
+        const multiEncrypted = await encryptMultiRecipientSecret(
+          secretPayload,
+          recipients.map(r => ({
+            label: r.label.trim(),
+            burnOnRead: r.burnOnRead,
+            password: r.password.trim() || undefined,
+          })),
+          {
+            duressPassword: useDuress ? duressPassword.trim() : undefined,
+            decoyData: decoyPayload,
+            authenticatedMeta: `cipherdrop-v2-envelope:${formatter}`,
+          }
+        );
 
-      const encrypted = await encryptSecret(secretPayload, masterKey, {
-        password: usePassword ? password.trim() : undefined,
-        duressPassword: useDuress ? duressPassword.trim() : undefined,
-        decoyData: decoyPayload,
-        authenticatedMeta: `cipherdrop-v2:${formatter}:${isBurn ? 1 : 0}`,
-      });
+        const response = await fetch('/api/paste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payload: multiEncrypted.payload,
+            isMultiRecipient: true,
+            envelopes: multiEncrypted.envelopes,
+            adminTokenHash: multiEncrypted.adminTokenHash,
+            expireInSeconds: expireSec,
+            burnAfterReading: false,
+            maxViews: -1,
+            openDiscussion: openDiscussion && !isBurn,
+          }),
+        });
 
-      // 4. Send ONLY ciphertext to server
-      const response = await fetch('/api/paste', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payload: encrypted,
-          expireInSeconds: expireSec,
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Failed to save multi-recipient envelopes on server.');
+        }
+
+        const result = await response.json();
+
+        const recipientLinks = multiEncrypted.recipientSecrets.map(r => ({
+          slotId: r.slotId,
+          label: r.label,
+          slotKey: r.slotKey,
+          url: `${window.location.origin}/#p=${result.id}&slot=${r.slotId}&k=${r.slotKey}`,
+          burnOnRead: r.burnOnRead,
+          hasPassword: r.hasPassword,
+        }));
+
+        const adminUrl = `${window.location.origin}/#admin=${result.id}&token=${multiEncrypted.adminToken}`;
+
+        onSecretCreated({
+          pasteId: result.id,
+          isMultiRecipient: true,
+          adminToken: multiEncrypted.adminToken,
+          adminUrl,
+          deleteToken: result.deleteToken,
+          expireAt: result.expireAt,
+          recipientLinks,
+        });
+
+      } else {
+        // --- STANDARD SINGLE-LINK ENCRYPTION ---
+        const masterKey = generateMasterKey();
+
+        const encrypted = await encryptSecret(secretPayload, masterKey, {
+          password: usePassword ? password.trim() : undefined,
+          duressPassword: useDuress ? duressPassword.trim() : undefined,
+          decoyData: decoyPayload,
+          authenticatedMeta: `cipherdrop-v2:${formatter}:${isBurn ? 1 : 0}`,
+        });
+
+        const response = await fetch('/api/paste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payload: encrypted,
+            expireInSeconds: expireSec,
+            burnAfterReading: isBurn,
+            maxViews: isBurn ? 1 : maxViews,
+            openDiscussion: openDiscussion && !isBurn,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Failed to save encrypted secret on server.');
+        }
+
+        const result = await response.json();
+
+        onSecretCreated({
+          pasteId: result.id,
+          isMultiRecipient: false,
+          masterKey: masterKey,
+          deleteToken: result.deleteToken,
+          expireAt: result.expireAt,
           burnAfterReading: isBurn,
-          maxViews: isBurn ? 1 : maxViews,
-          openDiscussion: openDiscussion && !isBurn,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to save encrypted secret on server.');
+        });
       }
-
-      const result = await response.json();
-
-      onSecretCreated({
-        pasteId: result.id,
-        masterKey: masterKey,
-        deleteToken: result.deleteToken,
-        expireAt: result.expireAt,
-        burnAfterReading: isBurn,
-      });
 
     } catch (err: any) {
       console.error('Encryption error:', err);
@@ -245,7 +353,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       
-      {/* Top Banner / Security Badge */}
+      {/* Top Banner / Security Badge & Sharing Strategy */}
       <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-emerald-500/20 bg-gradient-to-r from-emerald-950/20 via-obsidian-900 to-obsidian-900">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -257,63 +365,179 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
             </h2>
             <p className="text-xs text-slate-400">
-              Payload is encrypted in your browser with <span className="font-mono text-emerald-300">AES-256-GCM</span> before leaving this device.
+              Payload encrypted client-side with <span className="font-mono text-emerald-300">AES-256-GCM</span>. The server never sees raw secrets.
             </p>
           </div>
         </div>
 
-        {/* Formatter Tabs */}
+        {/* Sharing Mode Toggle */}
         <div className="flex items-center gap-1 bg-obsidian-950 p-1 rounded-xl border border-white/10">
           <button
             type="button"
-            onClick={() => setFormatter('code')}
-            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-              formatter === 'code' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+            onClick={() => setSharingMode('standard')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              sharingMode === 'standard' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <FileCode className="w-3.5 h-3.5" />
-            Code
+            <LinkIcon className="w-3.5 h-3.5" />
+            Standard Link
           </button>
-
           <button
             type="button"
-            onClick={() => setFormatter('markdown')}
-            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-              formatter === 'markdown' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+            onClick={() => setSharingMode('multi')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              sharingMode === 'multi' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <FileText className="w-3.5 h-3.5" />
-            Markdown
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFormatter('env')}
-            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-              formatter === 'env' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ListOrdered className="w-3.5 h-3.5" />
-            .ENV Keys
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFormatter('plaintext')}
-            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg transition-all ${
-              formatter === 'plaintext' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Plaintext
+            <Users className="w-3.5 h-3.5" />
+            Multi-Recipient Envelopes
+            <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+              sharingMode === 'multi' ? 'bg-obsidian-950 text-emerald-400' : 'bg-white/10 text-slate-300'
+            }`}>
+              {recipients.length}
+            </span>
           </button>
         </div>
       </div>
+
+      {/* Multi-Recipient Slots Configuration Drawer */}
+      {sharingMode === 'multi' && (
+        <div className="glass-panel p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/10 space-y-4 animate-fadeIn">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/20 pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-400" />
+                Multi-Recipient Envelopes Configuration ({recipients.length} People)
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                The payload will be encrypted once. Each person receives an isolated link with their own wrapped key, independent burn-after-reading, and selective revocation.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddRecipient}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              + Add Recipient Slot
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {recipients.map((r, idx) => (
+              <div
+                key={r.id}
+                className="p-3.5 bg-obsidian-950 rounded-xl border border-white/10 space-y-2.5 relative group hover:border-emerald-500/30 transition-all"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold flex items-center justify-center border border-emerald-500/20">
+                      {idx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={r.label}
+                      onChange={(e) => handleUpdateRecipient(r.id, { label: e.target.value })}
+                      placeholder={`Recipient ${idx + 1} Name`}
+                      className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none focus:text-emerald-300 border-b border-transparent focus:border-emerald-500 w-32"
+                    />
+                  </div>
+
+                  {recipients.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveRecipient(r.id)}
+                      className="text-slate-500 hover:text-rose-400 p-1 rounded transition-colors"
+                      title="Remove Recipient Slot"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 pt-1 border-t border-white/5 text-[11px]">
+                  <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={r.burnOnRead}
+                      onChange={(e) => handleUpdateRecipient(r.id, { burnOnRead: e.target.checked })}
+                      className="rounded border-white/20 bg-obsidian-900 text-emerald-500 focus:ring-emerald-500/20 w-3.5 h-3.5"
+                    />
+                    <span className="flex items-center gap-1 text-slate-400">
+                      <Flame className="w-3 h-3 text-rose-400" />
+                      Burn slot on first read
+                    </span>
+                  </label>
+
+                  <div className="pt-1">
+                    <input
+                      type="password"
+                      value={r.password}
+                      onChange={(e) => handleUpdateRecipient(r.id, { password: e.target.value })}
+                      placeholder="Optional slot passphrase..."
+                      className="w-full bg-obsidian-900 border border-white/10 px-2 py-1 rounded text-[11px] font-mono text-slate-200 placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Editor Box */}
       <div className="glass-panel rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
         
         {/* Editor Sub-Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-obsidian-950/80 border-b border-white/5">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-obsidian-950/80 border-b border-white/5">
+          
+          {/* Formatter Tabs */}
+          <div className="flex items-center gap-1 bg-obsidian-900 p-1 rounded-xl border border-white/10">
+            <button
+              type="button"
+              onClick={() => setFormatter('code')}
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                formatter === 'code' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              Code
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormatter('markdown')}
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                formatter === 'markdown' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Markdown
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormatter('env')}
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                formatter === 'env' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ListOrdered className="w-3.5 h-3.5" />
+              .ENV Keys
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormatter('plaintext')}
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                formatter === 'plaintext' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Plaintext
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
             {formatter === 'code' && (
               <div className="flex items-center gap-2">
@@ -330,17 +554,15 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
               </div>
             )}
             {formatter === 'markdown' && (
-              <span className="text-xs text-slate-400 font-mono">Live split preview & GitHub flavored markdown</span>
+              <span className="text-xs text-slate-400 font-mono">Live preview & Markdown</span>
             )}
             {formatter === 'env' && (
-              <span className="text-xs text-slate-400 font-mono">Key-Value Secret Credentials Builder</span>
+              <span className="text-xs text-slate-400 font-mono">Key-Value Secret Credentials</span>
             )}
             {formatter === 'plaintext' && (
-              <span className="text-xs text-slate-400 font-mono">Standard raw text format</span>
+              <span className="text-xs text-slate-400 font-mono">Raw Text</span>
             )}
-          </div>
 
-          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}

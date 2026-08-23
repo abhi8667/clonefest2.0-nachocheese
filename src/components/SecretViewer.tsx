@@ -17,24 +17,35 @@ import {
   AlertTriangle, 
   Clock, 
   Eye, 
-  EyeOff,
-  Sparkles,
-  File,
-  ShieldAlert
+  EyeOff, 
+  Sparkles, 
+  File, 
+  ShieldAlert,
+  Users,
+  KeyRound
 } from 'lucide-react';
-import { PasteResponse, DecryptedSecret, StoredComment } from '../types';
-import { decryptSecret, encryptSecret, generateMasterKey } from '../crypto/webcrypto';
+import { PasteResponse, DecryptedSecret, StoredComment, RecipientEnvelopeSlot } from '../types';
+import { 
+  decryptSecret, 
+  encryptSecret, 
+  generateMasterKey,
+  unwrapRecipientEnvelope,
+  decryptMultiRecipientSecret 
+} from '../crypto/webcrypto';
 
 interface SecretViewerProps {
   pasteId: string;
   masterKey: string;
+  slotId?: string;
   onClose: () => void;
 }
 
-export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, onClose }) => {
+export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, slotId, onClose }) => {
   // Network & Paste State
   const [pasteData, setPasteData] = useState<PasteResponse | null>(null);
   const [decryptedSecret, setDecryptedSecret] = useState<DecryptedSecret | null>(null);
+  const [activeSlotInfo, setActiveSlotInfo] = useState<RecipientEnvelopeSlot | null>(null);
+  const [effectiveCEK, setEffectiveCEK] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -71,15 +82,23 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
         setIsLoading(true);
         setFetchError(null);
 
-        const res = await fetch(`/api/paste/${pasteId}`);
+        const fetchUrl = slotId 
+          ? `/api/paste/${pasteId}?slot=${encodeURIComponent(slotId)}`
+          : `/api/paste/${pasteId}`;
+
+        const res = await fetch(fetchUrl);
+        const data = await res.json();
+
         if (!res.ok) {
           if (res.status === 404) {
-            throw new Error('This secret has expired, burned after reading, or does not exist.');
+            throw new Error(data.error || 'This secret has expired, was revoked, or does not exist.');
           }
-          throw new Error(`Failed to load secret (HTTP ${res.status}).`);
+          if (res.status === 410) {
+            throw new Error(data.error || 'This recipient link was already burned after its first read.');
+          }
+          throw new Error(data.error || `Failed to load secret (HTTP ${res.status}).`);
         }
 
-        const data: PasteResponse = await res.json();
         if (!isMounted) return;
 
         setPasteData(data);
@@ -91,17 +110,42 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           setTimeRemaining(Math.max(0, data.expireAt - now));
         }
 
-        // Attempt initial automatic decryption without password
-        try {
-          const decrypted = await decryptSecret(data.payload, masterKey);
-          if (isMounted) {
-            setDecryptedSecret(decrypted);
-            decryptComments(data.comments || [], masterKey);
+        // Determine if multi-recipient envelope decryption is needed
+        if (data.isMultiRecipient) {
+          const envelope = data.activeSlot || data.envelopes?.find((e: RecipientEnvelopeSlot) => e.slotId === slotId);
+          if (!envelope) {
+            throw new Error('Could not identify a valid recipient envelope slot for this link.');
           }
-        } catch (err) {
-          // If decryption without password fails, prompt for password
-          if (isMounted) {
-            setIsPasswordRequired(true);
+          setActiveSlotInfo(envelope);
+
+          try {
+            // Attempt automatic unwrap & decrypt without password
+            const unwrappedKey = await unwrapRecipientEnvelope(envelope, masterKey);
+            const decrypted = await decryptSecret(data.payload, unwrappedKey);
+            if (isMounted) {
+              setEffectiveCEK(unwrappedKey);
+              setDecryptedSecret(decrypted);
+              decryptComments(data.comments || [], unwrappedKey);
+            }
+          } catch (err) {
+            // Password required for this slot or master payload
+            if (isMounted) {
+              setIsPasswordRequired(true);
+            }
+          }
+        } else {
+          // Standard single-link paste
+          setEffectiveCEK(masterKey);
+          try {
+            const decrypted = await decryptSecret(data.payload, masterKey);
+            if (isMounted) {
+              setDecryptedSecret(decrypted);
+              decryptComments(data.comments || [], masterKey);
+            }
+          } catch (err) {
+            if (isMounted) {
+              setIsPasswordRequired(true);
+            }
           }
         }
       } catch (err: any) {
@@ -117,7 +161,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
 
     loadPaste();
     return () => { isMounted = false; };
-  }, [pasteId, masterKey]);
+  }, [pasteId, masterKey, slotId]);
 
   // Live Countdown Timer
   useEffect(() => {
@@ -134,7 +178,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     return () => clearInterval(interval);
   }, [timeRemaining]);
 
-  // Decrypt comments with master key
+  // Decrypt comments with active key
   const decryptComments = async (rawComments: StoredComment[], key: string) => {
     const decryptedList: StoredComment[] = [];
     for (const c of rawComments) {
@@ -163,7 +207,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     setComments(decryptedList);
   };
 
-  // Password decryption attempt (also handles Duress Password)
+  // Password decryption attempt (also handles Duress Password & Envelope password)
   const handlePasswordDecrypt = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password.trim() || !pasteData) return;
@@ -172,16 +216,27 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
       setIsDecrypting(true);
       setDecryptError(null);
 
-      const decrypted = await decryptSecret(pasteData.payload, masterKey, password.trim());
-      setDecryptedSecret(decrypted);
-      setIsPasswordRequired(false);
-      decryptComments(pasteData.comments || [], masterKey);
+      if (pasteData.isMultiRecipient && activeSlotInfo) {
+        const unwrappedKey = await unwrapRecipientEnvelope(activeSlotInfo, masterKey, password.trim());
+        const decrypted = await decryptSecret(pasteData.payload, unwrappedKey, password.trim());
+        setEffectiveCEK(unwrappedKey);
+        setDecryptedSecret(decrypted);
+        setIsPasswordRequired(false);
+        decryptComments(pasteData.comments || [], unwrappedKey);
+      } else {
+        const decrypted = await decryptSecret(pasteData.payload, masterKey, password.trim());
+        setEffectiveCEK(masterKey);
+        setDecryptedSecret(decrypted);
+        setIsPasswordRequired(false);
+        decryptComments(pasteData.comments || [], masterKey);
+      }
     } catch (err: any) {
       setDecryptError('Decryption failed. Incorrect password.');
     } finally {
       setIsDecrypting(false);
     }
   };
+
 
   // Post Zero-Knowledge Encrypted Comment
   const handlePostComment = async (e: React.FormEvent) => {
@@ -191,14 +246,15 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     try {
       setIsSubmittingComment(true);
 
-      // Encrypt comment with masterKey
+      // Encrypt comment with effective Content Encryption Key
+      const keyToUse = effectiveCEK || masterKey;
       const encrypted = await encryptSecret(
         {
           text: newCommentText.trim(),
           formatter: 'plaintext',
           language: newCommentAuthor.trim() || 'Anonymous',
         },
-        masterKey
+        keyToUse
       );
 
       const res = await fetch(`/api/paste/${pasteId}/comment`, {
@@ -324,7 +380,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           <p className="text-sm text-slate-400 leading-relaxed">{fetchError}</p>
         </div>
         <div className="p-3 bg-obsidian-950 rounded-xl text-xs font-mono text-slate-500 border border-white/5">
-          Guaranteed Zero-Knowledge: Expired or burned secrets are permanently purged from database and memory buffers.
+          Guaranteed Zero-Knowledge: Expired, revoked, or burned secrets are permanently purged from database and memory buffers.
         </div>
         <button
           onClick={onClose}
@@ -349,7 +405,9 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-100">Password Protected Secret</h2>
-            <p className="text-xs text-slate-400">Enter password to derive AES-256 key</p>
+            <p className="text-xs text-slate-400">
+              {activeSlotInfo ? `Enter passphrase for recipient [${activeSlotInfo.label}]` : 'Enter password to derive AES-256 key'}
+            </p>
           </div>
         </div>
 
@@ -439,13 +497,28 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
             <Unlock className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-sm font-bold text-slate-100">Decrypted Successfully</h2>
-              {pasteData?.burnAfterReading && (
+              
+              {activeSlotInfo && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono flex items-center gap-1">
+                  <Users className="w-3 h-3 text-emerald-400" />
+                  Slot: {activeSlotInfo.label}
+                </span>
+              )}
+
+              {activeSlotInfo?.burnOnRead && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono flex items-center gap-1">
+                  <Flame className="w-3 h-3" /> Slot Burned on First Read
+                </span>
+              )}
+
+              {!activeSlotInfo && pasteData?.burnAfterReading && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono">
                   🔥 Server Copy Burned
                 </span>
               )}
+
               {decryptedSecret?.isDecoy && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono flex items-center gap-1">
                   <ShieldAlert className="w-3 h-3" /> Decoy Payload
@@ -453,10 +526,11 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
               )}
             </div>
             <p className="text-xs text-slate-400 font-mono">
-              AES-256-GCM • Tag Verified • Zero Server Knowledge
+              {activeSlotInfo ? 'Envelope Key Unwrapped • AES-256-GCM Payload Decrypted' : 'AES-256-GCM • Tag Verified • Zero Server Knowledge'}
             </p>
           </div>
         </div>
+
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">

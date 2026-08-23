@@ -7,40 +7,46 @@ CipherDrop is a modern, decentralized, zero-knowledge platform for sharing sensi
 
 ## Key Features & Innovations
 
-### 1.  Coercion Resistance (Duress / Decoy Mode)
+### 1. 👥 Multi-Recipient Envelope Encryption (Hybrid Key Wrapping)
+* Encrypt a confidential secret **once** using an AES-256-GCM Content Encryption Key (CEK), and wrap it into **$N$ isolated recipient envelopes**.
+* Each recipient receives an independent link (`/#p=<id>&slot=<slotId>&k=<slotKey>`) with their own slot key, custom label, and optional individual burn-after-reading or extra passphrase.
+* **Creator Zero-Knowledge Admin Dashboard**: Creator receives a private `#admin=<id>&token=<token>` telemetry link to monitor real-time read receipts (`Pending`, `Read`, `Burned`) and selectively revoke individual recipient access without invalidating links for other recipients.
+
+### 2. 🛡️ Coercion Resistance (Duress / Decoy Mode)
 * Set a secondary **Duress Password** alongside your real password.
 * If forced to disclose your password under duress or coercion, entering the duress password seamlessly derives the secondary key and decrypts an innocent **Decoy Secret** with zero mathematical proof that a primary secret exists.
 
-### 2.  Inbound "Request-a-Secret" DropBox
+### 3. 📥 Inbound "Request-a-Secret" DropBox
 * Need credentials from a non-technical client, vendor, or colleague? Generate a single-use inbound secret drop link.
 * Uses browser-generated **RSA-OAEP 2048-bit + AES-GCM hybrid asymmetric encryption**.
 * The submitter enters the credentials in their browser; their browser encrypts it with your public key before sending. Only your browser session with the private key can decrypt the submission!
 
-### 3.  Real-Time E2EE Ephemeral Incident War Room
+### 4. 🚨 Real-Time E2EE Ephemeral Incident War Room
 * Instant collaborative workspace for DevOps, SysAdmins, and SecOps responders handling live outages or credential rotation.
 * Features a live synchronized encrypted collaborative scratchpad and real-time incident chat over WebSockets.
 * Includes an **Emergency Nuke & Zeroize** button that immediately purges the room state across all connected peers.
 
-### 4.  Steganography Disguise Carrier (DPI Bypass)
+### 5. 🖼️ Steganography Disguise Carrier (DPI Bypass)
 * Injects encrypted AES-256-GCM payloads into the Least Significant Bits (LSB) of PNG carrier image pixels.
 * Recipient can drag-and-drop the clean carrier image into CipherDrop and decrypt the hidden payload with their key.
 
-### 5.  Multi-Format Smart Secret Editors
+### 6. 📝 Multi-Format Smart Secret Editors
 * **Multi-Language Code Editor**: Syntax highlighting with line numbers for 20+ languages (Python, JS, TS, Rust, Go, SQL, Bash, YAML, JSON, Dockerfile, etc.).
 * **Live Markdown Split View**: Real-time side-by-side formatted preview with tables and checklists.
 * **Structured `.ENV` Builder**: Specialized key-value credentials constructor with individual value masking and one-click copy buttons.
 * **Encrypted File Attachments**: Drag-and-drop any binary file (PDFs, images, documents, zips up to 15MB) with client-side chunk encryption.
 
-### 6.  Ephemeral Lifecycles & Guaranteed Destruction
+### 7. ⏳ Ephemeral Lifecycles & Guaranteed Destruction
 * **Granular Expirations**: Burn after 1 view, 5m, 15m, 1h, 1d, 7d, 30d, or persistent.
 * **Custom View Limits**: Restrict secrets to exactly 1, 2, 5, or 10 views before automatic destruction.
 * **Automated Background Janitor**: Server-side background worker automatically sweeps and purges expired secrets every 30 seconds.
 * **Encrypted Discussions**: Threaded replies where every comment is encrypted symmetrically before submission.
 
-### 7.  Air-Gapped & Developer Tools
+### 8. 🧰 Air-Gapped & Developer Tools
 * **Air-Gapped QR Code Handoff**: Scan encrypted secret URLs directly from phone cameras.
 * **Offline Cryptographic Sandbox**: Encrypt and decrypt text and files 100% offline without sending any network requests.
 * **Interactive API & CLI Hub**: Live code generators with copy-paste snippets in **cURL**, **JavaScript**, **Python**, **Go**, and **Rust**.
+
 
 ---
 
