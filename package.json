@@ -13,7 +13,7 @@
     "test": "tsx --test tests/crypto.test.js && tsx --test tests/e2e_integration.test.js && tsx --test tests/time_lock.test.js"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
+    "better-sqlite3": "^11.10.0",
     "concurrently": "^9.1.2",
     "cors": "^2.8.5",
     "express": "^4.21.2",
