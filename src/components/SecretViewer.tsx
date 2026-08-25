@@ -38,6 +38,7 @@ import {
   decryptMultiRecipientSecret,
   combineQuorumSharesToCek
 } from '../crypto/webcrypto';
+import { cyberAudio } from '../utils/cyberAudio';
 
 interface SecretViewerProps {
   pasteId: string;
@@ -162,6 +163,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
             setEffectiveCEK(recoveredKey);
             const decrypted = await decryptSecret(data.payload, recoveredKey);
             setDecryptedSecret(decrypted);
+            cyberAudio.playDecryptSuccess();
             decryptComments(data.comments || [], recoveredKey);
           } catch (err) {
             setIsPasswordRequired(true);
@@ -184,6 +186,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           const decrypted = await decryptSecret(data.payload, unwrappedKey);
           setEffectiveCEK(unwrappedKey);
           setDecryptedSecret(decrypted);
+          cyberAudio.playDecryptSuccess();
           decryptComments(data.comments || [], unwrappedKey);
         } catch (err) {
           // Password required for this slot or master payload
@@ -194,7 +197,9 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
         setEffectiveCEK(masterKey);
         try {
           const decrypted = await decryptSecret(data.payload, masterKey);
+          setEffectiveCEK(masterKey);
           setDecryptedSecret(decrypted);
+          cyberAudio.playDecryptSuccess();
           decryptComments(data.comments || [], masterKey);
         } catch (err) {
           setIsPasswordRequired(true);
@@ -307,6 +312,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
       setEffectiveCEK(recoveredKey);
       const decrypted = await decryptSecret(pasteData!.payload, recoveredKey, password.trim() || undefined);
       setDecryptedSecret(decrypted);
+      cyberAudio.playDecryptSuccess();
       setIsPasswordRequired(false);
       decryptComments(pasteData!.comments || [], recoveredKey);
     } catch (err: any) {
@@ -333,6 +339,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
       if (isQuorum && effectiveCEK) {
         const decrypted = await decryptSecret(pasteData.payload, effectiveCEK, password.trim());
         setDecryptedSecret(decrypted);
+        cyberAudio.playDecryptSuccess();
         setIsPasswordRequired(false);
         decryptComments(pasteData.comments || [], effectiveCEK);
       } else if (pasteData.isMultiRecipient && activeSlotInfo) {
@@ -340,12 +347,14 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
         const decrypted = await decryptSecret(pasteData.payload, unwrappedKey, password.trim());
         setEffectiveCEK(unwrappedKey);
         setDecryptedSecret(decrypted);
+        cyberAudio.playDecryptSuccess();
         setIsPasswordRequired(false);
         decryptComments(pasteData.comments || [], unwrappedKey);
       } else {
         const decrypted = await decryptSecret(pasteData.payload, masterKey, password.trim());
         setEffectiveCEK(masterKey);
         setDecryptedSecret(decrypted);
+        cyberAudio.playDecryptSuccess();
         setIsPasswordRequired(false);
         decryptComments(pasteData.comments || [], masterKey);
       }
@@ -439,6 +448,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   const copyToClipboard = async (textToCopy: string) => {
     try {
       await navigator.clipboard.writeText(textToCopy);
+      cyberAudio.playClick(1400, 0.02);
       setCopiedText(true);
       setTimeout(() => setCopiedText(false), 2000);
     } catch (_) {}

@@ -13,7 +13,9 @@ import { ApiCliHub } from './components/ApiCliHub';
 import { HeroSection } from './components/HeroSection';
 import { OnboardingLanding } from './components/OnboardingLanding';
 import { TerminalLanding } from './components/TerminalLanding';
-import { ActiveTab, CreatedSecretResult } from './types';
+import { CyberMatrixCanvas } from './components/CyberMatrixCanvas';
+import { CyberSecurityHud } from './components/CyberSecurityHud';
+import { ActiveTab, CreatedSecretResult, SecretFormatter } from './types';
 import { ShieldCheck, Lock, Terminal, Radio, Github } from 'lucide-react';
 
 const ONBOARDING_KEY = 'cipherdrop-onboarding-complete';
@@ -21,6 +23,7 @@ const TERMINAL_INTRO_KEY = 'cipherdrop-terminal-intro-seen';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('create');
+  const [samplePayload, setSamplePayload] = useState<{ text: string; formatter: SecretFormatter } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
     return localStorage.getItem(ONBOARDING_KEY) !== 'true';
   });
@@ -129,6 +132,7 @@ export function App() {
     setViewingSecret(null);
     setCreatedModalData(null);
     setAdminModalData(null);
+    setSamplePayload(null);
     window.location.hash = '';
   };
 
@@ -138,14 +142,16 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-obsidian-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-300">
+    <div className="min-h-screen bg-obsidian-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-300 relative">
+
+      {/* Interactive Cryptographic Matrix Particle Canvas */}
+      <CyberMatrixCanvas />
 
       {/* Background Decorative Glows (Animated) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute -top-40 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl bg-glow-1"></div>
         <div className="absolute top-1/2 -right-40 w-96 h-96 bg-emerald-700/5 rounded-full blur-3xl bg-glow-2"></div>
         <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl bg-glow-3"></div>
-        <div className="absolute inset-0 grid-pattern opacity-50"></div>
       </div>
 
       {/* Top Navigation */}
@@ -160,8 +166,13 @@ export function App() {
         onOpenVerifyModal={() => setShowVerifyModal(true)}
       />
 
+      {/* Live Security Posture & Operations HUD */}
+      <div className="pt-4 px-4 sm:px-6 lg:px-8">
+        <CyberSecurityHud />
+      </div>
+
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {viewingSecret ? (
           <SecretViewer
             pasteId={viewingSecret.pasteId}
@@ -176,8 +187,22 @@ export function App() {
                 <OnboardingLanding onEnter={completeOnboarding} />
               ) : (
                 <>
-                  <HeroSection onScrollToEditor={() => {}} />
-                  <SecretEditor onSecretCreated={handleSecretCreated} />
+                  <HeroSection 
+                    onScrollToEditor={() => {
+                      const el = document.getElementById('secret-editor-container');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }} 
+                    onLoadSample={(text, fmt) => {
+                      setSamplePayload({ text, formatter: fmt as SecretFormatter });
+                    }}
+                  />
+                  <div id="secret-editor-container">
+                    <SecretEditor 
+                      onSecretCreated={handleSecretCreated} 
+                      initialText={samplePayload?.text}
+                      initialFormatter={samplePayload?.formatter}
+                    />
+                  </div>
                 </>
               )
             )}
