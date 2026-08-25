@@ -1,0 +1,23 @@
+# Render Blueprint for Crypton / CipherDrop
+#
+# One long-running Node process serves everything: the built Vite SPA from
+# dist/, the /api/* REST routes, and the /ws/incident-room WebSocket relay.
+# This is why the app cannot go on a serverless platform -- the WS relay and
+# the 30s janitor sweep both need a process that stays alive between requests.
+services:
+  - type: web
+    name: crypton
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+    # NOTE: the free plan has no persistent disk and spins the container down
+    # after ~15 min idle, which resets the SQLite file. To make secrets survive
+    # restarts, switch `plan` to `starter` and add:
+    #   envVars: - key: DB_PATH
+    #              value: /data/cipherdrop.db
+    #   disk: { name: crypton-data, mountPath: /data, sizeGB: 1 }

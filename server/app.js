@@ -17,6 +17,12 @@ const __dirname = path.dirname(__filename);
 
 export const app = express();
 
+// Render/Railway terminate TLS at a single proxy hop in front of the app.
+// Without this, express-rate-limit keys every visitor off the proxy's IP and
+// the 120/min budget below is shared by the entire internet instead of being
+// per-client.
+app.set('trust proxy', 1);
+
 // Middlewares
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
