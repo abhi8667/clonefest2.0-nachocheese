@@ -14,6 +14,7 @@ import { TerminalWindow } from './TerminalWindow';
 
 interface OnboardingLandingProps {
   onEnter: () => void;
+  uiMode?: 'guided' | 'operator';
 }
 
 const LEDGER_LINES = [
@@ -76,7 +77,8 @@ const MODES: {
   },
 ];
 
-export const OnboardingLanding: React.FC<OnboardingLandingProps> = ({ onEnter }) => {
+export const OnboardingLanding: React.FC<OnboardingLandingProps> = ({ onEnter, uiMode = 'guided' }) => {
+  const isGuided = uiMode === 'guided';
   return (
     <div className="max-w-5xl mx-auto animate-fade-in">
       <TerminalWindow path="anonymous@crypton — man crypton" glow>
@@ -117,7 +119,27 @@ export const OnboardingLanding: React.FC<OnboardingLandingProps> = ({ onEnter })
           </div>
         </div>
 
-        {/* Mode cards: when to use what */}
+        {/* Guided: one honest summary of the (deliberately small) feature
+            set the editor actually offers — no cards for modes that don't
+            exist in this mode. Operator: the full "pick your sharing mode"
+            breakdown, unchanged. */}
+        {isGuided ? (
+          <div className="p-5 rounded-xl bg-emerald-950/10 border border-emerald-500/15 mb-10 flex items-start gap-3 max-w-xl mx-auto">
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-mono font-semibold text-slate-200 mb-1">
+                That's really it
+              </h2>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Type your secret, pick when it should disappear, and optionally add a password.
+                One link, one key, sent to one person — nothing else to configure.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="mb-4">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
@@ -165,6 +187,8 @@ export const OnboardingLanding: React.FC<OnboardingLandingProps> = ({ onEnter })
             </p>
           </div>
         </div>
+          </>
+        )}
 
         {/* Single CTA */}
         <div className="text-center pb-2">

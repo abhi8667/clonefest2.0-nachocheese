@@ -233,7 +233,7 @@ export function App() {
               <div key={activeTab} className="animate-fade-in">
                 {activeTab === "create" &&
                   (showOnboarding ? (
-                    <OnboardingLanding onEnter={completeOnboarding} />
+                    <OnboardingLanding onEnter={completeOnboarding} uiMode={uiMode ?? undefined} />
                   ) : (
                     <>
                       <HeroSection
