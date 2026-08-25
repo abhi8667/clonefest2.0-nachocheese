@@ -9,7 +9,11 @@ services:
     name: crypton
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build
+    # --include=dev is required: NODE_ENV=production below makes npm omit
+    # devDependencies, and react/vite/typescript/lucide-react all live there.
+    # They are build-time only -- the runtime needs just the deps in
+    # "dependencies", since vite bundles the rest into dist/.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
