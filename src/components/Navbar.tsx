@@ -1,32 +1,37 @@
-import React, { useState } from 'react';
-import { 
-  ShieldCheck, 
-  PlusCircle, 
-  Inbox, 
-  Flame, 
-  Image as ImageIcon, 
-  Lock, 
-  Code2,
+import React, { useState } from "react";
+import {
+  ShieldCheck,
+  PlusCircle,
+  Inbox,
+  Flame,
+  Image as ImageIcon,
+  Lock,
   Terminal,
   Volume2,
   VolumeX,
-  Sparkles,
-  Radio
-} from 'lucide-react';
-import { ActiveTab } from '../types';
-import { cyberAudio } from '../utils/cyberAudio';
+} from "lucide-react";
+
+import { ActiveTab } from "../types";
+import { cyberAudio } from "../utils/cyberAudio";
 
 interface NavbarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   onNewSecret: () => void;
+  uiMode?: "guided" | "operator";
   onOpenVerifyModal?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewSecret, onOpenVerifyModal }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  activeTab,
+  setActiveTab,
+  onNewSecret,
+  uiMode = "guided",
+  onOpenVerifyModal,
+}) => {
   const [isMuted, setIsMuted] = useState(() => cyberAudio.getMuted());
 
-  const handleTabClick = (tab: ActiveTab) => {
+  const navigate = (tab: ActiveTab) => {
     cyberAudio.playClick(1100, 0.02);
     setActiveTab(tab);
   };
@@ -36,133 +41,186 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewSe
     setIsMuted(muted);
   };
 
+  const isOperator = uiMode === "operator";
+
   return (
-    <header className="sticky top-0 z-40 w-full glass-panel border-b border-white/10 backdrop-blur-2xl">
-      {/* Terminal title bar — the whole site lives inside one continuous window frame */}
-      <div className="flex items-center gap-2 px-4 sm:px-6 lg:px-8 py-1.5 border-b border-white/5 bg-obsidian-950/60">
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80 shadow-[0_0_6px_#f43f5e]"></span>
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 shadow-[0_0_6px_#f59e0b]"></span>
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 shadow-[0_0_6px_#10b981]"></span>
-        </div>
-        <span className="flex-1 text-center text-[10px] font-mono text-slate-500 truncate px-2">
-          anonymous@cipherdrop&nbsp;—&nbsp;sovereign-node:0x7F&nbsp;—&nbsp;zsh
-        </span>
-        <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-400/80">
-          <span className="hidden sm:inline">● E2EE 256-BIT</span>
-        </div>
-      </div>
+    <header
+      className="
+        sticky
+        top-0
+        z-40
+        w-full
+        py-1
+        border-b
+        border-white/[0.08]
+        bg-[#05080b]/80
+        backdrop-blur-xl
+      "
+    >
+      {/* =========================================================
+          TOP SYSTEM LINE
+      ========================================================= */}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2.5 pb-2">
-        <div className="flex items-center justify-between gap-4 h-14 sm:h-16">
+      <div
+        className={`
+          absolute
+          top-0
+          left-0
+          right-0
+          h-px
+          ${
+            isOperator
+              ? "bg-gradient-to-r from-transparent via-[#DE443B]/60 to-transparent"
+              : "bg-gradient-to-r from-transparent via-[#00A8E8]/60 to-transparent"
+          }
+        `}
+      />
 
-          {/* Logo & Brand */}
-          <div
-            className="flex items-center gap-3 cursor-pointer group flex-shrink-0"
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        {/* =======================================================
+            MAIN NAVBAR
+        ======================================================== */}
+
+        <div
+          className="
+            relative
+            flex
+            h-[64px]
+            items-center
+            justify-between
+            gap-4
+          "
+        >
+          {/* =====================================================
+              BRAND
+          ====================================================== */}
+
+          <button
             onClick={() => {
               cyberAudio.playClick(800, 0.02);
-              setActiveTab('create');
+              navigate("create");
               onNewSecret();
             }}
+            className="
+            flex
+            items-center
+            gap-3
+            font-mono
+            text-[9px]
+            md:text-[10px]
+            tracking-[0.25em]
+            text-slate-400
+            transition-colors
+            hover:text-slate-200
+          "
           >
-            <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition-transform duration-200">
-              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-obsidian-950 stroke-[2.5]" />
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
-              </span>
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-lg sm:text-xl font-bold tracking-tight whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-300">
-                  Cipher<span className="text-emerald-400">Drop</span>
-                </span>
-                <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider whitespace-nowrap bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded shadow-sm">
-                  v2.0 PQC
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-mono hidden sm:block truncate">Zero-Knowledge Sovereign Exchange</p>
-            </div>
-          </div>
+            <span
+              className="
+              h-1.5
+              w-1.5
+              rounded-full
+              bg-cyan-400
+              shadow-[0_0_12px_rgba(34,211,238,0.9)]
+              animate-pulse"
+            />
+            crypton // SECURE NODE
+          </button>
 
-          {/* Navigation Tabs */}
-          <nav className="hidden xl:flex items-center gap-1.5 flex-shrink-0 bg-obsidian-900/90 p-1 rounded-xl border border-white/10 shadow-inner">
-            <button
-              onClick={() => handleTabClick('create')}
-              className={`relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono whitespace-nowrap rounded-lg transition-all duration-150 ${
-                activeTab === 'create'
-                  ? 'tab-active-underline bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.2)] font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              New Secret
-            </button>
+          {/* =====================================================
+              DESKTOP NAVIGATION
+          ====================================================== */}
 
-            <button
-              onClick={() => handleTabClick('request-drop')}
-              className={`relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono whitespace-nowrap rounded-lg transition-all duration-150 ${
-                activeTab === 'request-drop'
-                  ? 'tab-active-underline bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.2)] font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <Inbox className="w-3.5 h-3.5" />
-              Request Drop
-            </button>
+          <nav
+            className="
+              hidden
+              md:flex
+              h-full
+              items-center
+              gap-0.5
+            "
+          >
+            {/* Guided */}
 
-            <button
-              onClick={() => handleTabClick('incident-room')}
-              className={`relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono whitespace-nowrap rounded-lg transition-all duration-150 ${
-                activeTab === 'incident-room'
-                  ? 'tab-active-underline bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.2)] font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5 text-amber-400" />
-              Incident Room
-            </button>
+            {!isOperator && (
+              <>
+                <NavButton
+                  active={activeTab === "create"}
+                  onClick={() => navigate("create")}
+                  icon={<PlusCircle />}
+                  label="Create"
+                />
 
-            <button
-              onClick={() => handleTabClick('stego')}
-              className={`relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono whitespace-nowrap rounded-lg transition-all duration-150 ${
-                activeTab === 'stego'
-                  ? 'tab-active-underline bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.2)] font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              Stego
-            </button>
+                <NavButton
+                  active={activeTab === "request-drop"}
+                  onClick={() => navigate("request-drop")}
+                  icon={<Inbox />}
+                  label="Receive"
+                />
+              </>
+            )}
 
-            <button
-              onClick={() => handleTabClick('vault')}
-              className={`relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono whitespace-nowrap rounded-lg transition-all duration-150 ${
-                activeTab === 'vault'
-                  ? 'tab-active-underline bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.2)] font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <Lock className="w-3.5 h-3.5" />
-              Vault
-            </button>
+            {/* Operator */}
 
-            <button
-              onClick={() => handleTabClick('api-docs')}
-              className={`relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-mono whitespace-nowrap rounded-lg transition-all duration-150 ${
-                activeTab === 'api-docs'
-                  ? 'tab-active-underline bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.2)] font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              API
-            </button>
+            {isOperator && (
+              <>
+                <NavButton
+                  active={activeTab === "create"}
+                  onClick={() => navigate("create")}
+                  icon={<PlusCircle />}
+                  label="Create"
+                />
+
+                <NavButton
+                  active={activeTab === "request-drop"}
+                  onClick={() => navigate("request-drop")}
+                  icon={<Inbox />}
+                  label="Drops"
+                />
+
+                <NavButton
+                  active={activeTab === "incident-room"}
+                  onClick={() => navigate("incident-room")}
+                  icon={<Flame />}
+                  label="War Room"
+                  danger
+                />
+
+                <NavButton
+                  active={activeTab === "stego"}
+                  onClick={() => navigate("stego")}
+                  icon={<ImageIcon />}
+                  label="Stego"
+                />
+
+                <NavButton
+                  active={activeTab === "vault"}
+                  onClick={() => navigate("vault")}
+                  icon={<Lock />}
+                  label="Vault"
+                />
+
+                <NavButton
+                  active={activeTab === "api-docs"}
+                  onClick={() => navigate("api-docs")}
+                  icon={<Terminal />}
+                  label="API / CLI"
+                />
+              </>
+            )}
           </nav>
 
-          {/* Quick Actions & Security Status */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            
+          {/* =====================================================
+              RIGHT SIDE
+          ====================================================== */}
+
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+              shrink-0
+            "
+          >
             {/* Audio Toggle */}
             <button
               onClick={handleToggleSound}
@@ -171,7 +229,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewSe
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20' 
                   : 'bg-obsidian-900 border-white/10 text-slate-500 hover:text-slate-300'
               }`}
-              title={isMuted ? 'Enable Sci-Fi Audio FX' : 'Mute Audio FX'}
+              title={isMuted ? 'Enable Audio FX' : 'Mute Audio FX'}
             >
               {!isMuted ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4" />}
             </button>
@@ -190,73 +248,332 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewSe
               </button>
             )}
 
+            {/* Mode indicator */}
+
+            <div
+              className={`
+                hidden
+                lg:flex
+                items-center
+                gap-2
+                border
+                px-2.5
+                py-1.5
+                font-mono
+                text-[7px]
+                tracking-[0.15em]
+                ${
+                  isOperator
+                    ? "border-[#DE443B]/20 text-[#FF8178] bg-[#DE443B]/[0.035]"
+                    : "border-[#00A8E8]/20 text-[#4DE4FF] bg-[#00A8E8]/[0.035]"
+                }
+              `}
+            >
+              <span
+                className={`
+                  h-1.5
+                  w-1.5
+                  rounded-full
+                  animate-pulse
+                  ${isOperator ? "bg-[#FF6B63]" : "bg-[#4DE4FF]"}
+                `}
+              />
+
+              {isOperator ? "OPERATOR // ONLINE" : "GUIDED // SECURE"}
+            </div>
+
+            {/* Separator */}
+
+            <div
+              className="
+                hidden
+                lg:block
+                h-5
+                w-px
+                bg-white/[0.08]
+              "
+            />
+
+            {/* New secret */}
+
             <button
               onClick={() => {
                 cyberAudio.playClick(1000, 0.02);
-                setActiveTab('create');
+                navigate("create");
                 onNewSecret();
               }}
-              className="btn-cyber-primary flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-md hover:scale-105"
+              className="
+                group
+                relative
+                flex
+                items-center
+                gap-2
+                border
+                border-[#00A8E8]/30
+                bg-[#00A8E8]/[0.07]
+                px-3
+                py-2
+                font-mono
+                text-[9px]
+                tracking-[0.08em]
+                text-[#D7F3FF]
+                transition-all
+                duration-200
+                hover:border-[#4DE4FF]/60
+                hover:bg-[#00A8E8]/[0.12]
+              "
             >
-              <PlusCircle className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">New Secret</span>
+              <PlusCircle
+                className="
+                  h-3.5
+                  w-3.5
+                  text-[#4DE4FF]
+                  transition-transform
+                  duration-200
+                  group-hover:rotate-90
+                "
+                strokeWidth={1.8}
+              />
+
+              <span className="hidden sm:inline">NEW SECRET</span>
+
+              <span className="sm:hidden">NEW</span>
             </button>
           </div>
-
         </div>
 
-        {/* Mobile / Tablet Navigation Row — shown until the full nav fits at xl */}
-        <div className="flex xl:hidden overflow-x-auto py-2 gap-2 border-t border-white/5 scrollbar-none">
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`px-3 py-1.5 min-h-[32px] text-xs font-mono whitespace-nowrap flex-shrink-0 rounded-lg border transition-colors duration-150 ${
-              activeTab === 'create' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5'
-            }`}
-          >
-            New Secret
-          </button>
-          <button
-            onClick={() => setActiveTab('request-drop')}
-            className={`px-3 py-1.5 min-h-[32px] text-xs font-mono whitespace-nowrap flex-shrink-0 rounded-lg border transition-colors duration-150 ${
-              activeTab === 'request-drop' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5'
-            }`}
-          >
-            Request Drop
-          </button>
-          <button
-            onClick={() => setActiveTab('incident-room')}
-            className={`px-3 py-1.5 min-h-[32px] text-xs font-mono whitespace-nowrap flex-shrink-0 rounded-lg border transition-colors duration-150 ${
-              activeTab === 'incident-room' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5'
-            }`}
-          >
-            Incident Room
-          </button>
-          <button
-            onClick={() => setActiveTab('stego')}
-            className={`px-3 py-1.5 min-h-[32px] text-xs font-mono whitespace-nowrap flex-shrink-0 rounded-lg border transition-colors duration-150 ${
-              activeTab === 'stego' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5'
-            }`}
-          >
-            Stego
-          </button>
-          <button
-            onClick={() => setActiveTab('vault')}
-            className={`px-3 py-1.5 min-h-[32px] text-xs font-mono whitespace-nowrap flex-shrink-0 rounded-lg border transition-colors duration-150 ${
-              activeTab === 'vault' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5'
-            }`}
-          >
-            Vault
-          </button>
-          <button
-            onClick={() => setActiveTab('api-docs')}
-            className={`px-3 py-1.5 min-h-[32px] text-xs font-mono whitespace-nowrap flex-shrink-0 rounded-lg border transition-colors duration-150 ${
-              activeTab === 'api-docs' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5'
-            }`}
-          >
-            API
-          </button>
+        {/* =======================================================
+            MOBILE NAVIGATION
+        ======================================================== */}
+
+        <div
+          className="
+            md:hidden
+            flex
+            items-center
+            gap-1
+            overflow-x-auto
+            border-t
+            border-white/[0.05]
+            py-2
+            scrollbar-none
+          "
+        >
+          <MobileNavButton
+            active={activeTab === "create"}
+            onClick={() => navigate("create")}
+            label="CREATE"
+          />
+
+          <MobileNavButton
+            active={activeTab === "request-drop"}
+            onClick={() => navigate("request-drop")}
+            label={isOperator ? "DROPS" : "RECEIVE"}
+          />
+
+          {isOperator && (
+            <>
+              <MobileNavButton
+                active={activeTab === "incident-room"}
+                onClick={() => navigate("incident-room")}
+                label="WAR ROOM"
+                danger
+              />
+
+              <MobileNavButton
+                active={activeTab === "stego"}
+                onClick={() => navigate("stego")}
+                label="STEGO"
+              />
+
+              <MobileNavButton
+                active={activeTab === "vault"}
+                onClick={() => navigate("vault")}
+                label="VAULT"
+              />
+
+              <MobileNavButton
+                active={activeTab === "api-docs"}
+                onClick={() => navigate("api-docs")}
+                label="API / CLI"
+              />
+            </>
+          )}
         </div>
       </div>
     </header>
   );
 };
+
+/* =============================================================
+   DESKTOP NAV BUTTON
+============================================================= */
+
+interface NavButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  danger?: boolean;
+}
+
+function NavButton({ active, onClick, icon, label, danger }: NavButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        group
+        relative
+        flex
+        h-[64px]
+        items-center
+        gap-2
+        px-3
+        lg:px-3.5
+        font-mono
+        text-[9px]
+        tracking-[0.08em]
+        transition-all
+        duration-200
+
+        ${
+          active
+            ? danger
+              ? `
+                text-[#FF8178]
+                bg-[#DE443B]/[0.045]
+              `
+              : `
+                text-[#4DE4FF]
+                bg-[#00A8E8]/[0.045]
+              `
+            : `
+              text-slate-500
+              hover:text-slate-200
+              hover:bg-white/[0.025]
+            `
+        }
+      `}
+    >
+      {/* Active top marker */}
+
+      {active && (
+        <span
+          className={`
+            absolute
+            left-2
+            right-2
+            top-0
+            h-px
+            ${danger ? "bg-[#DE443B]" : "bg-[#00A8E8]"}
+          `}
+        />
+      )}
+
+      {/* Active bottom marker */}
+
+      {active && (
+        <span
+          className={`
+            absolute
+            bottom-0
+            left-1/2
+            h-[2px]
+            w-5
+            -translate-x-1/2
+            ${danger ? "bg-[#DE443B]" : "bg-[#00A8E8]"}
+          `}
+        />
+      )}
+
+      {/* Icon */}
+
+      {React.cloneElement(icon as React.ReactElement, {
+        className: `
+            h-3.5
+            w-3.5
+            transition-transform
+            duration-200
+            group-hover:scale-105
+          `,
+        strokeWidth: 1.7,
+      })}
+
+      {/* Label */}
+
+      <span>{label}</span>
+    </button>
+  );
+}
+
+/* =============================================================
+   MOBILE NAV BUTTON
+============================================================= */
+
+interface MobileNavButtonProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  danger?: boolean;
+}
+
+function MobileNavButton({
+  active,
+  onClick,
+  label,
+  danger,
+}: MobileNavButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        relative
+        shrink-0
+        border
+        px-3
+        py-1.5
+        font-mono
+        text-[8px]
+        tracking-[0.12em]
+        transition-all
+        duration-200
+
+        ${
+          active
+            ? danger
+              ? `
+                border-[#DE443B]/30
+                bg-[#DE443B]/[0.07]
+                text-[#FF8178]
+              `
+              : `
+                border-[#00A8E8]/30
+                bg-[#00A8E8]/[0.07]
+                text-[#4DE4FF]
+              `
+            : `
+              border-white/[0.06]
+              bg-white/[0.015]
+              text-slate-600
+              hover:text-slate-300
+            `
+        }
+      `}
+    >
+      {active && (
+        <span
+          className={`
+            absolute
+            left-0
+            top-0
+            h-full
+            w-px
+            ${danger ? "bg-[#DE443B]" : "bg-[#00A8E8]"}
+          `}
+        />
+      )}
+
+      {label}
+    </button>
+  );
+}
