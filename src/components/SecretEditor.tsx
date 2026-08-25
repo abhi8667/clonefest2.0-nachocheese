@@ -16,23 +16,29 @@ import {
   Trash2, 
   EyeOff, 
   Check, 
-  X,
-  UploadCloud,
-  File,
-  AlertCircle,
-  Users,
-  Link as LinkIcon,
-  ShieldCheck,
-  UserCheck,
-  SlidersHorizontal,
-  ChevronDown
+  X, 
+  UploadCloud, 
+  File, 
+  AlertCircle, 
+  Users, 
+  Link as LinkIcon, 
+  ShieldCheck, 
+  UserCheck, 
+  SlidersHorizontal, 
+  ChevronDown,
+  Fingerprint,
+  Cpu,
+  Share2
 } from 'lucide-react';
-import { SecretFormatter, FileAttachment, DecryptedSecret, CreatedSecretResult } from '../types';
-import { generateMasterKey, encryptSecret, encryptMultiRecipientSecret } from '../crypto/webcrypto';
+import { SecretFormatter, FileAttachment, DecryptedSecret, CreatedSecretResult, KdfType } from '../types';
+import { generateMasterKey, encryptSecret, encryptMultiRecipientSecret, encryptQuorumSecret } from '../crypto/webcrypto';
 import { TerminalWindow } from './TerminalWindow';
+import { cyberAudio } from '../utils/cyberAudio';
 
 interface SecretEditorProps {
   onSecretCreated: (result: CreatedSecretResult) => void;
+  initialText?: string;
+  initialFormatter?: SecretFormatter;
 }
 
 const LANGUAGES = [
@@ -58,24 +64,93 @@ interface SlotEditorItem {
   password: string;
 }
 
-export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) => {
-  // Progressive disclosure: hide Duress / Time-Lock / Multi-Recipient behind an Advanced toggle
+function estimatePasswordStrength(pass: string): { entropy: number; score: number; crackTime: string; label: string; color: string } {
+  if (!pass) return { entropy: 0, score: 0, crackTime: 'Instant', label: 'Empty', color: 'text-slate-500' };
+  let poolSize = 0;
+  if (/[a-z]/.test(pass)) poolSize += 26;
+  if (/[A-Z]/.test(pass)) poolSize += 26;
+  if (/[0-9]/.test(pass)) poolSize += 10;
+  if (/[^a-zA-Z0-9]/.test(pass)) poolSize += 32;
+
+  const entropy = Math.round(pass.length * Math.log2(poolSize || 1));
+  let score = 1;
+  let crackTime = '< 1 second';
+  let label = 'Very Weak';
+  let color = 'text-red-400';
+
+  if (entropy >= 80) {
+    score = 4;
+    crackTime = '> 100 Billion Years (Quantum-Resistant)';
+    label = 'Military Grade';
+    color = 'text-emerald-400';
+  } else if (entropy >= 60) {
+    score = 3;
+    crackTime = '~ 45,000 Years';
+    label = 'Extremely Strong';
+    color = 'text-emerald-300';
+  } else if (entropy >= 45) {
+    score = 2;
+    crackTime = '~ 3 Months';
+    label = 'Moderate';
+    color = 'text-amber-400';
+  } else if (entropy >= 28) {
+    score = 1;
+    crackTime = '~ 4 Minutes';
+    label = 'Weak';
+    color = 'text-rose-400';
+  }
+
+  return { entropy, score, crackTime, label, color };
+}
+
+export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, initialText, initialFormatter }) => {
+  // Progressive disclosure: hide Duress / Time-Lock / Multi-Recipient / Quorum behind an Advanced toggle
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
-  // Sharing Mode: Standard (Single Key) vs Multi-Recipient Envelopes
-  const [sharingMode, setSharingMode] = useState<'standard' | 'multi'>('standard');
+  // Sharing Mode: Standard (Single Key) vs Multi-Recipient Envelopes vs Quorum Unlock (Shamir M-of-N)
+  const [sharingMode, setSharingMode] = useState<'standard' | 'multi' | 'quorum'>('standard');
 
   // Multi-Recipient Slots State
   const [recipients, setRecipients] = useState<SlotEditorItem[]>([
     { id: '1', label: 'Alice', burnOnRead: true, password: '' },
     { id: '2', label: 'Bob', burnOnRead: true, password: '' },
   ]);
+  const [watermarkEnvelopes, setWatermarkEnvelopes] = useState<boolean>(true);
+
+  // Quorum Unlock (M-of-N Shamir Secret Sharing) State
+  const [quorumThreshold, setQuorumThreshold] = useState<number>(2);
+  const [quorumTotalShares, setQuorumTotalShares] = useState<number>(3);
+  const [quorumTrustees, setQuorumTrustees] = useState<string[]>([
+    'Alice (Security Lead)',
+    'Bob (Infrastructure)',
+    'Charlie (Legal / Compliance)',
+  ]);
 
   // Mode & Content State
-  const [formatter, setFormatter] = useState<SecretFormatter>('code');
+  const [formatter, setFormatter] = useState<SecretFormatter>(initialFormatter || 'code');
   const [language, setLanguage] = useState<string>('javascript');
-  const [text, setText] = useState<string>('');
+  const [text, setText] = useState<string>(initialText || '');
   
+  // Update state if initialText or initialFormatter prop changes
+  useEffect(() => {
+    if (initialText !== undefined) {
+      setText(initialText);
+      if (initialFormatter === 'env') {
+        setFormatter('env');
+        const lines = initialText.split('\n');
+        const entries = lines.filter(l => l.includes('=')).map(l => {
+          const idx = l.indexOf('=');
+          return { key: l.slice(0, idx).trim(), value: l.slice(idx + 1).trim(), masked: true };
+        });
+        if (entries.length > 0) {
+          setEnvEntries(entries);
+        }
+      } else if (initialFormatter) {
+        setFormatter(initialFormatter);
+      }
+    }
+  }, [initialText, initialFormatter]);
+
   // Structured ENV State
   const [envEntries, setEnvEntries] = useState<{ key: string; value: string; masked: boolean }[]>([
     { key: 'DATABASE_URL', value: 'postgresql://postgres:secretpassword@prod-db.internal:5432/main', masked: true },
@@ -92,9 +167,10 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
   const [maxViews, setMaxViews] = useState<number>(-1);
   const [openDiscussion, setOpenDiscussion] = useState<boolean>(true);
 
-  // Password Protection & Duress Decoy Mode
+  // Password Protection & KDF (Argon2id vs PBKDF2)
   const [usePassword, setUsePassword] = useState<boolean>(false);
   const [password, setPassword] = useState<string>('');
+  const [kdfChoice, setKdfChoice] = useState<KdfType>('argon2id');
   const [useDuress, setUseDuress] = useState<boolean>(false);
   const [duressPassword, setDuressPassword] = useState<string>('');
   const [decoyText, setDecoyText] = useState<string>(
@@ -114,8 +190,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
 
   // Count of active advanced features, shown as a badge on the Advanced toggle
   const advancedFeatureCount =
-    (sharingMode === 'multi' ? 1 : 0) + (useDuress ? 1 : 0) + (timeLockEnabled ? 1 : 0);
-
+    (sharingMode !== 'standard' ? 1 : 0) + (useDuress ? 1 : 0) + (timeLockEnabled ? 1 : 0) + (kdfChoice === 'argon2id' && usePassword ? 1 : 0);
 
   // Auto-convert ENV entries to text when in env mode
   const getCompiledEnvText = () => {
@@ -137,8 +212,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     text, envEntries, formatter, language, attachment, expireOption, burnAfterReading,
-    maxViews, openDiscussion, usePassword, password, useDuress, duressPassword, decoyText,
-    timeLockEnabled, unlockDate, unlockTime, unlockTimezone
+    maxViews, openDiscussion, usePassword, password, kdfChoice, useDuress, duressPassword, decoyText,
+    timeLockEnabled, unlockDate, unlockTime, unlockTimezone, sharingMode, recipients, watermarkEnvelopes,
+    quorumThreshold, quorumTotalShares, quorumTrustees
   ]);
 
   // Handle File Drag & Drop
@@ -149,34 +225,32 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
     }
   };
 
-  const processFile = (file: File) => {
+  const processFile = (file: globalThis.File) => {
     if (file.size > 15 * 1024 * 1024) {
-      setErrorMessage('File size exceeds maximum limit of 15MB.');
+      setErrorMessage('File size exceeds maximum zero-knowledge client limit of 15MB.');
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = (ev) => {
       setAttachment({
         name: file.name,
         type: file.type || 'application/octet-stream',
         size: file.size,
-        data: reader.result as string,
+        data: ev.target?.result as string,
       });
-      setErrorMessage(null);
     };
     reader.readAsDataURL(file);
   };
 
   // Calculate Expiry Seconds
-  const getExpireSeconds = (opt: string): number => {
-    switch (opt) {
-      case 'burn': return 86400; // will also have burn flag set
-      case '5min': return 5 * 60;
-      case '15min': return 15 * 60;
-      case '1hour': return 60 * 60;
-      case '1day': return 24 * 60 * 60;
-      case '7days': return 7 * 24 * 60 * 60;
-      case '30days': return 30 * 24 * 60 * 60;
+  const getExpireSeconds = (option: string): number => {
+    switch (option) {
+      case '5min': return 300;
+      case '15min': return 900;
+      case '1hour': return 3600;
+      case '1day': return 86400;
+      case '7days': return 604800;
+      case '30days': return 2592000;
       case 'never': return 0;
       default: return 86400;
     }
@@ -187,7 +261,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
     const nextIdx = recipients.length + 1;
     setRecipients([
       ...recipients,
-      { id: String(Date.now()), label: `Recipient ${nextIdx}`, burnOnRead: true, password: '' },
+      { id: Date.now().toString(), label: `Recipient ${nextIdx}`, burnOnRead: true, password: '' }
     ]);
   };
 
@@ -200,6 +274,19 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
   // Update a recipient slot
   const handleUpdateRecipient = (id: string, updates: Partial<SlotEditorItem>) => {
     setRecipients(recipients.map(r => (r.id === id ? { ...r, ...updates } : r)));
+  };
+
+  // Update Quorum total shares and adjust trustees list
+  const handleQuorumTotalSharesChange = (newTotal: number) => {
+    setQuorumTotalShares(newTotal);
+    if (quorumThreshold > newTotal) {
+      setQuorumThreshold(newTotal);
+    }
+    const updated = [...quorumTrustees];
+    while (updated.length < newTotal) {
+      updated.push(`Trustee ${updated.length + 1}`);
+    }
+    setQuorumTrustees(updated.slice(0, newTotal));
   };
 
   // Time-Lock Helpers
@@ -272,6 +359,17 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         }
       }
 
+      if (sharingMode === 'quorum') {
+        if (quorumThreshold > quorumTotalShares) {
+          setErrorMessage('Quorum threshold M cannot be greater than Total Shares N.');
+          return;
+        }
+        if (quorumThreshold < 2) {
+          setErrorMessage('Quorum threshold M must be at least 2.');
+          return;
+        }
+      }
+
       if (useDuress && (!duressPassword.trim() || !decoyText.trim())) {
         setErrorMessage('Duress mode requires both a Duress Password and a Decoy Message.');
         return;
@@ -307,6 +405,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         }
       }
 
+      cyberAudio.playEncryptSweep();
       setIsEncrypting(true);
 
       // Prepare decrypted payload
@@ -324,8 +423,65 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         commentsAllowed: false,
       } : undefined;
 
-      if (sharingMode === 'multi') {
-        // --- MULTI-RECIPIENT ENVELOPE ENCRYPTION ---
+      if (sharingMode === 'quorum') {
+        // --- QUORUM UNLOCK (M-of-N SHAMIR'S SECRET SHARING) ---
+        const quorumGenerated = await encryptQuorumSecret(
+          secretPayload,
+          quorumThreshold,
+          quorumTotalShares,
+          quorumTrustees,
+          {
+            password: usePassword ? password.trim() : undefined,
+            duressPassword: useDuress ? duressPassword.trim() : undefined,
+            decoyData: decoyPayload,
+            authenticatedMeta: `cipherdrop-v2-quorum:${formatter}:${quorumThreshold}of${quorumTotalShares}`,
+            kdf: kdfChoice,
+          }
+        );
+
+        const response = await fetch('/api/paste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payload: quorumGenerated.payload,
+            isMultiRecipient: false,
+            expireInSeconds: expireSec,
+            burnAfterReading: isBurn,
+            maxViews: isBurn ? 1 : maxViews,
+            openDiscussion: openDiscussion && !isBurn,
+            timeLockEnabled: Boolean(timeLockEnabled),
+            unlockAt: unlockIso,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Failed to save quorum secret on server.');
+        }
+
+        const result = await response.json();
+
+        const quorumShares = quorumGenerated.shares.map(s => ({
+          shareIndex: s.shareIndex,
+          shareKey: s.shareKey,
+          label: s.label,
+          url: `${window.location.origin}/#p=${result.id}&k=${s.shareKey}&share=${s.shareIndex}`,
+        }));
+
+        onSecretCreated({
+          pasteId: result.id,
+          isQuorum: true,
+          threshold: quorumThreshold,
+          totalShares: quorumTotalShares,
+          deleteToken: result.deleteToken,
+          expireAt: result.expireAt,
+          timeLockEnabled: Boolean(timeLockEnabled),
+          unlockAt: result.unlockAt || unlockIso,
+          quorumShares,
+        });
+
+      } else if (sharingMode === 'multi') {
+        // --- MULTI-RECIPIENT ENVELOPE ENCRYPTION WITH OPTIONAL WATERMARKING ---
         const multiEncrypted = await encryptMultiRecipientSecret(
           secretPayload,
           recipients.map(r => ({
@@ -337,6 +493,8 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
             duressPassword: useDuress ? duressPassword.trim() : undefined,
             decoyData: decoyPayload,
             authenticatedMeta: `cipherdrop-v2-envelope:${formatter}`,
+            watermarkEnvelopes: watermarkEnvelopes,
+            kdf: kdfChoice,
           }
         );
 
@@ -371,6 +529,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
           url: `${window.location.origin}/#p=${result.id}&slot=${r.slotId}&k=${r.slotKey}`,
           burnOnRead: r.burnOnRead,
           hasPassword: r.hasPassword,
+          watermarked: r.watermarked,
         }));
 
         const adminUrl = `${window.location.origin}/#admin=${result.id}&token=${multiEncrypted.adminToken}`;
@@ -396,6 +555,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
           duressPassword: useDuress ? duressPassword.trim() : undefined,
           decoyData: decoyPayload,
           authenticatedMeta: `cipherdrop-v2:${formatter}:${isBurn ? 1 : 0}`,
+          kdf: kdfChoice,
         });
 
         const response = await fetch('/api/paste', {
@@ -450,55 +610,40 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
       className="space-y-6 p-6"
     >
 
-      {/* Top Banner / Security Badge & Sharing Strategy */}
-      <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-emerald-500/20 bg-gradient-to-r from-emerald-950/20 via-obsidian-900 to-obsidian-900">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-            <Lock className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-mono font-semibold text-slate-100 flex items-center gap-2">
-              Zero-Knowledge End-to-End Encryption
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
-            </h2>
-            <p className="text-xs text-slate-400">
-              Payload encrypted client-side with <span className="font-mono text-emerald-300">AES-256-GCM</span>. The server never sees raw secrets.
-            </p>
-          </div>
-        </div>
-
-        {/* Advanced Options Toggle */}
+      {/* Advanced Options Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-obsidian-950 rounded-2xl border border-white/5">
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all ${
-            showAdvanced
-              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-              : 'bg-obsidian-950 text-slate-300 border-white/10 hover:border-emerald-500/30 hover:text-emerald-300'
-          }`}
+          className="flex items-center gap-2 text-xs font-mono text-slate-300 hover:text-emerald-400 transition-colors"
         >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          Advanced Options
+          <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+          <span className="font-bold">Cryptographic Options & Multi-Party Architecture</span>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showAdvanced ? 'rotate-180 text-emerald-400' : ''}`} />
           {advancedFeatureCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500 text-obsidian-950 font-bold">
-              {advancedFeatureCount}
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              {advancedFeatureCount} active
             </span>
           )}
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
         </button>
+
+        <span className="text-[11px] font-mono text-slate-500 hidden sm:inline">
+          Argon2id KDF • Shamir Quorum • Watermarking • Decoy Mode
+        </span>
       </div>
 
-      {/* Advanced: Sharing Mode (Standard vs Multi-Recipient) */}
+      {/* Sharing Mode Switcher */}
       {showAdvanced && (
-        <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-obsidian-950 rounded-2xl border border-white/10 animate-fadeIn">
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono flex items-center gap-2">
-              <Users className="w-3.5 h-3.5 text-emerald-400" />
-              Sharing Strategy
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">Sending to one person, or several? Choose how the key gets wrapped.</p>
+            <span className="text-xs font-bold text-slate-200 block">Cryptographic Distribution Architecture:</span>
+            <span className="text-[11px] text-slate-400">
+              {sharingMode === 'standard' && 'Single sovereign key with zero-knowledge decryption link.'}
+              {sharingMode === 'multi' && 'Independent wrapped envelopes for N recipients with per-slot burning & selective revocation.'}
+              {sharingMode === 'quorum' && 'M-of-N Shamir Secret Sharing: Requires M trustees to combine shares before anyone can decrypt.'}
+            </span>
           </div>
-          <div className="flex items-center gap-1 bg-obsidian-950 p-1 rounded-xl border border-white/10">
+          <div className="flex flex-wrap items-center gap-1 bg-obsidian-900 p-1 rounded-xl border border-white/10">
             <button
               type="button"
               onClick={() => setSharingMode('standard')}
@@ -507,7 +652,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
               }`}
             >
               <LinkIcon className="w-3.5 h-3.5" />
-              Standard Link
+              Standard
             </button>
             <button
               type="button"
@@ -517,13 +662,110 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              Multi-Recipient Envelopes
+              Multi-Recipient
               <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
                 sharingMode === 'multi' ? 'bg-obsidian-950 text-emerald-400' : 'bg-white/10 text-slate-300'
               }`}>
                 {recipients.length}
               </span>
             </button>
+            <button
+              type="button"
+              onClick={() => setSharingMode('quorum')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                sharingMode === 'quorum' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Quorum Unlock (Shamir)
+              <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                sharingMode === 'quorum' ? 'bg-obsidian-950 text-emerald-400' : 'bg-white/10 text-slate-300'
+              }`}>
+                {quorumThreshold}/{quorumTotalShares}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quorum Unlock Configuration Drawer */}
+      {showAdvanced && sharingMode === 'quorum' && (
+        <div className="glass-panel p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/10 space-y-4 animate-fadeIn">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/20 pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-emerald-400" />
+                Quorum Threshold Configuration (M-of-N Shamir's Secret Sharing)
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                The master Content Encryption Key (CEK) will be split into polynomial shares over GF(2^8). Any <strong>{quorumThreshold}</strong> of the <strong>{quorumTotalShares}</strong> trustees must collaborate and enter their shares to decrypt the secret.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-3 bg-obsidian-950 rounded-xl border border-white/10 space-y-2">
+              <label className="block text-xs font-mono text-slate-300 font-bold">
+                Threshold M (Shares Needed to Decrypt):
+              </label>
+              <select
+                value={quorumThreshold}
+                onChange={(e) => setQuorumThreshold(Number(e.target.value))}
+                className="w-full bg-obsidian-900 border border-white/10 text-xs text-emerald-400 rounded-lg p-2 font-mono focus:border-emerald-500 focus:outline-none"
+              >
+                {Array.from({ length: quorumTotalShares - 1 }, (_, i) => i + 2).map(n => (
+                  <option key={n} value={n}>{n} of {quorumTotalShares} Approvals Required</option>
+                ))}
+              </select>
+              <span className="text-[11px] text-slate-500 block font-mono">
+                Fewer than {quorumThreshold} shares reveal 0 bits of information.
+              </span>
+            </div>
+
+            <div className="p-3 bg-obsidian-950 rounded-xl border border-white/10 space-y-2">
+              <label className="block text-xs font-mono text-slate-300 font-bold">
+                Total Shares N (Distributed Trustees):
+              </label>
+              <select
+                value={quorumTotalShares}
+                onChange={(e) => handleQuorumTotalSharesChange(Number(e.target.value))}
+                className="w-full bg-obsidian-900 border border-white/10 text-xs text-slate-200 rounded-lg p-2 font-mono focus:border-emerald-500 focus:outline-none"
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 10].map(n => (
+                  <option key={n} value={n}>{n} Total Trustee Shares</option>
+                ))}
+              </select>
+              <span className="text-[11px] text-slate-500 block font-mono">
+                Total individual share links to generate and distribute.
+              </span>
+            </div>
+          </div>
+
+          {/* Trustee Labels */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">
+              Trustee Roles & Labels ({quorumTrustees.length})
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {quorumTrustees.map((label, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2 bg-obsidian-950 rounded-lg border border-white/5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold flex items-center justify-center border border-emerald-500/20 flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => {
+                      const updated = [...quorumTrustees];
+                      updated[idx] = e.target.value;
+                      setQuorumTrustees(updated);
+                    }}
+                    placeholder={`Trustee ${idx + 1} Name`}
+                    className="bg-transparent text-xs font-mono text-slate-200 focus:outline-none focus:text-emerald-300 border-b border-transparent focus:border-emerald-500 flex-1"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -550,6 +792,28 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
               <Plus className="w-3.5 h-3.5" />
               + Add Recipient Slot
             </button>
+          </div>
+
+          {/* Watermarking Option */}
+          <div className="p-3 bg-obsidian-950 rounded-xl border border-white/10 flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <label className="flex items-center gap-2 text-xs text-slate-200 font-bold cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={watermarkEnvelopes}
+                  onChange={(e) => setWatermarkEnvelopes(e.target.checked)}
+                  className="rounded border-white/20 bg-obsidian-900 text-emerald-500 focus:ring-emerald-500/20 w-4 h-4"
+                />
+                <Fingerprint className="w-4 h-4 text-emerald-400" />
+                <span>Enable Leak-Traceable Watermarking (Forensic Attribution)</span>
+              </label>
+              <p className="text-[11px] text-slate-400 pl-6">
+                Embeds an invisible recipient-keyed zero-width steganographic fingerprint in plaintext. If leaked, the source recipient can be forensically attributed with 100% precision.
+              </p>
+            </div>
+            <span className="hidden sm:inline px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Zero-Width Stego
+            </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -926,7 +1190,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono">Password & Duress Decoy</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono">Password & Hardening</h3>
             </div>
             {useDuress && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono">
@@ -943,20 +1207,117 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
                 onChange={(e) => setUsePassword(e.target.checked)}
                 className="rounded border-white/20 bg-obsidian-900 text-emerald-500 focus:ring-emerald-500/20"
               />
-              <span>Require Decryption Password (PBKDF2 600k)</span>
+              <span>Require Decryption Passphrase</span>
             </label>
 
             {usePassword && (
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter strong primary password…"
-                autoComplete="off"
-                data-1p-ignore
-                data-lpignore="true"
-                className="w-full glass-input px-3 py-2 rounded-lg text-xs font-mono text-slate-100"
-              />
+              <div className="space-y-3 pt-1">
+                <div className="space-y-1.5">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter strong primary passphrase…"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs font-mono text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/60"
+                  />
+
+                  {/* Real-time Entropy & Crack Time Gauge */}
+                  {password && (
+                    <div className="p-2.5 rounded-xl bg-obsidian-950/80 border border-white/10 space-y-1.5 font-mono text-[11px] animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <span>Entropy Strength:</span>
+                          <span className={`font-bold ${estimatePasswordStrength(password).color}`}>
+                            {estimatePasswordStrength(password).label} ({estimatePasswordStrength(password).entropy} bits)
+                          </span>
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Estimated Crack: <span className="text-slate-200 font-bold">{estimatePasswordStrength(password).crackTime}</span>
+                        </span>
+                      </div>
+                      
+                      {/* Strength Segmented Bar */}
+                      <div className="grid grid-cols-4 gap-1 h-1.5 w-full bg-obsidian-900 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${estimatePasswordStrength(password).score >= 1 ? 'bg-red-500' : 'bg-transparent'}`}></div>
+                        <div className={`h-full rounded-full transition-all ${estimatePasswordStrength(password).score >= 2 ? 'bg-amber-500' : 'bg-transparent'}`}></div>
+                        <div className={`h-full rounded-full transition-all ${estimatePasswordStrength(password).score >= 3 ? 'bg-emerald-400' : 'bg-transparent'}`}></div>
+                        <div className={`h-full rounded-full transition-all ${estimatePasswordStrength(password).score >= 4 ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]' : 'bg-transparent'}`}></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* KDF selection */}
+                <div className="pt-2 border-t border-white/5 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-300 font-mono flex items-center gap-1.5">
+                      <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                      Key Derivation Hardening (KDF):
+                    </span>
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                      WASM Accelerated
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label 
+                      onClick={() => cyberAudio.playClick(900, 0.02)}
+                      className={`p-2.5 rounded-xl border cursor-pointer text-[11px] font-mono flex items-center gap-2.5 transition-all ${
+                        kdfChoice === 'argon2id' ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-obsidian-900 border-white/10 text-slate-400 hover:border-white/20'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="kdf"
+                        value="argon2id"
+                        checked={kdfChoice === 'argon2id'}
+                        onChange={() => setKdfChoice('argon2id')}
+                        className="hidden"
+                      />
+                      <Cpu className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <div>
+                        <span className="font-bold block text-slate-200">Argon2id (64MB)</span>
+                        <span className="text-[9px] text-emerald-400/80 block">OWASP Standard 2026</span>
+                      </div>
+                    </label>
+
+                    <label 
+                      onClick={() => cyberAudio.playClick(700, 0.02)}
+                      className={`p-2.5 rounded-xl border cursor-pointer text-[11px] font-mono flex items-center gap-2.5 transition-all ${
+                        kdfChoice === 'pbkdf2' ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-obsidian-900 border-white/10 text-slate-400 hover:border-white/20'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="kdf"
+                        value="pbkdf2"
+                        checked={kdfChoice === 'pbkdf2'}
+                        onChange={() => setKdfChoice('pbkdf2')}
+                        className="hidden"
+                      />
+                      <Lock className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <div>
+                        <span className="font-bold block text-slate-200">PBKDF2-SHA256</span>
+                        <span className="text-[9px] text-slate-500 block">600,000 rounds</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Argon2id Memory Visualizer */}
+                  {kdfChoice === 'argon2id' && (
+                    <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-[10px] font-mono text-emerald-300/90 flex items-center justify-between animate-fade-in">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Memory hardness: <strong>65,536 KiB (64MB)</strong> RAM</span>
+                      </div>
+                      <span className="text-slate-500 text-[9px]">ASIC/GPU Resistant</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
@@ -1111,7 +1472,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
         {!showAdvanced && (
           <div className="glass-panel p-4 rounded-2xl border border-white/10 md:col-span-2 flex items-center gap-2.5 text-xs text-slate-500">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
-            Need a scheduled release? Time-lock lives under <span className="text-emerald-400 font-mono">Advanced Options</span> above.
+            Need Quorum multi-trustee approvals, Argon2id KDF, or scheduled time-lock? Check <span className="text-emerald-400 font-mono">Cryptographic Options</span> above.
           </div>
         )}
 
@@ -1133,7 +1494,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
             <span>to encrypt</span>
           </div>
           <span>•</span>
-          <span className="text-emerald-400">Client-Side Key Generation</span>
+          <span className="text-emerald-400">
+            {sharingMode === 'quorum' ? `Shamir Quorum (${quorumThreshold}-of-${quorumTotalShares})` : sharingMode === 'multi' ? `Multi-Recipient (${recipients.length} Slots)` : 'Zero-Knowledge AES-GCM'}
+          </span>
         </div>
 
         <button
@@ -1149,7 +1512,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated }) =
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
-              <span>Encrypt & Create Secret Link</span>
+              <span>
+                {sharingMode === 'quorum' ? 'Generate Quorum Secret & Trustee Shares' : sharingMode === 'multi' ? 'Generate Multi-Recipient Envelopes' : 'Encrypt & Create Secret Link'}
+              </span>
             </>
           )}
         </button>

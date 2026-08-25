@@ -10,9 +10,12 @@ import {
   AlertTriangle, 
   X, 
   SlidersHorizontal,
-  ExternalLink
+  ExternalLink,
+  Activity,
+  ShieldAlert,
+  Eye
 } from 'lucide-react';
-import { hashSha256 } from '../crypto/webcrypto';
+import { hashSha256, dpCount } from '../crypto/webcrypto';
 import { TerminalWindow } from './TerminalWindow';
 
 interface CreatorAdminModalProps {
@@ -50,6 +53,11 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [revokingSlotId, setRevokingSlotId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // Differential Privacy State
+  const [enableDP, setEnableDP] = useState<boolean>(false);
+  const [epsilon, setEpsilon] = useState<number>(1.0);
+  const [dpNoiseRefresh, setDpNoiseRefresh] = useState<number>(0);
 
   const fetchStatus = async () => {
     try {
@@ -111,8 +119,19 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
 
   const formatTimestamp = (ts: number | null) => {
     if (!ts) return 'Not yet viewed';
+    if (enableDP) return 'Obfuscated (ε-DP Active)';
     return new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
+
+  // Compute DP metrics
+  const exactReadCount = data?.envelopes.filter(e => e.readAt !== null).length || 0;
+  const exactPendingCount = data?.envelopes.filter(e => e.readAt === null && !e.burned).length || 0;
+  const totalEnvelopes = data?.envelopes.length || 0;
+
+  // Noisy read count using Laplace mechanism:
+  const displayReadCount = enableDP 
+    ? Math.max(0, Math.min(totalEnvelopes, dpCount(exactReadCount, epsilon)))
+    : exactReadCount;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-md animate-fadeIn">
@@ -148,13 +167,60 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
           </div>
 
           <button
-            onClick={fetchStatus}
+            onClick={() => {
+              setDpNoiseRefresh(prev => prev + 1);
+              fetchStatus();
+            }}
             disabled={isLoading}
             className="p-2 rounded-xl bg-obsidian-900 border border-white/10 text-slate-300 hover:text-emerald-400 hover:bg-white/5 transition-colors disabled:opacity-50"
             title="Refresh Status"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
+        </div>
+
+        {/* Differential Privacy Toggle Panel */}
+        <div className="p-3.5 bg-obsidian-950 rounded-2xl border border-white/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableDP}
+                onChange={(e) => setEnableDP(e.target.checked)}
+                className="rounded border-white/20 bg-obsidian-900 text-emerald-500 focus:ring-emerald-500/20 w-4 h-4"
+              />
+              <Activity className="w-4 h-4 text-emerald-400" />
+              <span>Differential Privacy (ε-DP Laplace Obfuscation)</span>
+            </label>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+              enableDP ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-white/5 text-slate-500'
+            }`}>
+              {enableDP ? `ε = ${epsilon.toFixed(1)} active` : 'Exact Counts'}
+            </span>
+          </div>
+
+          {enableDP && (
+            <div className="pt-2 border-t border-white/5 space-y-2 animate-fadeIn text-xs">
+              <p className="text-[11px] text-slate-400">
+                Adds calibrated Laplace noise to view counts and masks exact read timestamps to protect individual recipient anonymity against correlation attacks.
+              </p>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-mono text-slate-400">Privacy Budget (ε):</span>
+                <input
+                  type="range"
+                  min="0.2"
+                  max="3.0"
+                  step="0.1"
+                  value={epsilon}
+                  onChange={(e) => setEpsilon(parseFloat(e.target.value))}
+                  className="flex-1 accent-emerald-400"
+                />
+                <span className="font-mono text-xs text-emerald-300 font-bold w-12">
+                  {epsilon.toFixed(1)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action / Error Banner */}
@@ -188,18 +254,21 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
                 <span className="text-sm font-bold text-slate-200">{data.envelopes.length}</span>
               </div>
               <div className="p-3 bg-obsidian-950 rounded-xl border border-white/5 space-y-1">
-                <span className="text-[10px] text-slate-500 block uppercase">Read</span>
+                <span className="text-[10px] text-slate-500 block uppercase">
+                  {enableDP ? 'Noisy Read (ε-DP)' : 'Read Count'}
+                </span>
                 <span className="text-sm font-bold text-emerald-400">
-                  {data.envelopes.filter(e => e.readAt !== null).length}
+                  {enableDP ? `~${displayReadCount}` : exactReadCount}
                 </span>
               </div>
               <div className="p-3 bg-obsidian-950 rounded-xl border border-white/5 space-y-1">
                 <span className="text-[10px] text-slate-500 block uppercase">Pending</span>
                 <span className="text-sm font-bold text-amber-400">
-                  {data.envelopes.filter(e => e.readAt === null && !e.burned).length}
+                  {enableDP ? `~${Math.max(0, totalEnvelopes - displayReadCount)}` : exactPendingCount}
                 </span>
               </div>
             </div>
+
 
             {/* Time-Lock Status Alert */}
             {data.timeLockEnabled && data.unlockAt && (

@@ -4,6 +4,7 @@ import { SecretEditor } from './components/SecretEditor';
 import { SecretViewer } from './components/SecretViewer';
 import { SecretCreatedModal } from './components/SecretCreatedModal';
 import { CreatorAdminModal } from './components/CreatorAdminModal';
+import { BuildIntegrityModal } from './components/BuildIntegrityModal';
 import { RequestSecretDrop } from './components/RequestSecretDrop';
 import { IncidentWarRoom } from './components/IncidentWarRoom';
 import { StegoTool } from './components/StegoTool';
@@ -12,7 +13,9 @@ import { ApiCliHub } from './components/ApiCliHub';
 import { HeroSection } from './components/HeroSection';
 import { OnboardingLanding } from './components/OnboardingLanding';
 import { TerminalLanding } from './components/TerminalLanding';
-import { ActiveTab, CreatedSecretResult } from './types';
+import { CyberMatrixCanvas } from './components/CyberMatrixCanvas';
+import { CyberSecurityHud } from './components/CyberSecurityHud';
+import { ActiveTab, CreatedSecretResult, SecretFormatter } from './types';
 import { ShieldCheck, Lock, Terminal, Radio, Github } from 'lucide-react';
 
 const ONBOARDING_KEY = 'cipherdrop-onboarding-complete';
@@ -20,6 +23,7 @@ const TERMINAL_INTRO_KEY = 'cipherdrop-terminal-intro-seen';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('create');
+  const [samplePayload, setSamplePayload] = useState<{ text: string; formatter: SecretFormatter } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
     return localStorage.getItem(ONBOARDING_KEY) !== 'true';
   });
@@ -48,6 +52,9 @@ export function App() {
 
   // Creator Admin Dashboard State
   const [adminModalData, setAdminModalData] = useState<{ pasteId: string; adminToken: string } | null>(null);
+
+  // Verifiable Build Integrity Modal State
+  const [showVerifyModal, setShowVerifyModal] = useState<boolean>(false);
 
   // URL Hash-based routing state
   const [inboundDropParams, setInboundDropParams] = useState<{ dropId: string; pubKey: string } | null>(null);
@@ -125,6 +132,7 @@ export function App() {
     setViewingSecret(null);
     setCreatedModalData(null);
     setAdminModalData(null);
+    setSamplePayload(null);
     window.location.hash = '';
   };
 
@@ -134,14 +142,16 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-obsidian-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-300">
+    <div className="min-h-screen bg-obsidian-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-300 relative">
+
+      {/* Interactive Cryptographic Matrix Particle Canvas */}
+      <CyberMatrixCanvas />
 
       {/* Background Decorative Glows (Animated) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute -top-40 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl bg-glow-1"></div>
         <div className="absolute top-1/2 -right-40 w-96 h-96 bg-emerald-700/5 rounded-full blur-3xl bg-glow-2"></div>
         <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl bg-glow-3"></div>
-        <div className="absolute inset-0 grid-pattern opacity-50"></div>
       </div>
 
       {/* Top Navigation */}
@@ -153,10 +163,16 @@ export function App() {
           setActiveTab(tab);
         }}
         onNewSecret={handleNewSecret}
+        onOpenVerifyModal={() => setShowVerifyModal(true)}
       />
 
+      {/* Live Security Posture & Operations HUD */}
+      <div className="pt-4 px-4 sm:px-6 lg:px-8">
+        <CyberSecurityHud />
+      </div>
+
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {viewingSecret ? (
           <SecretViewer
             pasteId={viewingSecret.pasteId}
@@ -171,8 +187,22 @@ export function App() {
                 <OnboardingLanding onEnter={completeOnboarding} />
               ) : (
                 <>
-                  <HeroSection onScrollToEditor={() => {}} />
-                  <SecretEditor onSecretCreated={handleSecretCreated} />
+                  <HeroSection 
+                    onScrollToEditor={() => {
+                      const el = document.getElementById('secret-editor-container');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }} 
+                    onLoadSample={(text, fmt) => {
+                      setSamplePayload({ text, formatter: fmt as SecretFormatter });
+                    }}
+                  />
+                  <div id="secret-editor-container">
+                    <SecretEditor 
+                      onSecretCreated={handleSecretCreated} 
+                      initialText={samplePayload?.text}
+                      initialFormatter={samplePayload?.formatter}
+                    />
+                  </div>
                 </>
               )
             )}
@@ -221,6 +251,12 @@ export function App() {
         />
       )}
 
+      {/* Verifiable Build Integrity Modal */}
+      {showVerifyModal && (
+        <BuildIntegrityModal
+          onClose={() => setShowVerifyModal(false)}
+        />
+      )}
 
       {/* Footer */}
       <footer className="border-t border-emerald-500/10 bg-obsidian-950/90 backdrop-blur-md py-6 text-xs text-slate-500 font-mono">
@@ -235,9 +271,10 @@ export function App() {
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <span className="crypto-badge">🔒 AES-256-GCM</span>
-                <span className="crypto-badge">🔑 PBKDF2-600k</span>
-                <span className="crypto-badge">🛡️ RSA-OAEP 2048</span>
-                <span className="crypto-badge">📡 WebSocket E2EE</span>
+                <span className="crypto-badge">🛡️ OWASP Argon2id</span>
+                <span className="crypto-badge">🧩 Shamir M-of-N</span>
+                <span className="crypto-badge">🔍 Traceable Watermark</span>
+                <span className="crypto-badge">🔑 RSA-OAEP / ECDH</span>
                 <span className="crypto-badge">⏱️ Time-Lock UTC</span>
               </div>
             </div>
@@ -245,9 +282,16 @@ export function App() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-white/5">
               <span className="text-slate-600">Zero-Knowledge Sovereign Secret Exchange Platform</span>
               <div className="flex items-center gap-4 text-slate-500">
-                <a href="https://github.com/abhi8667/clonefest2.0-nachocheese" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
+                <a href="https://github.com/daivikmank-bit/Crypton" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
                   <Github className="w-3.5 h-3.5" /> GitHub
                 </a>
+                <span className="text-white/10">|</span>
+                <span
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                  onClick={() => setShowVerifyModal(true)}
+                >
+                  Verify Build
+                </span>
                 <span className="text-white/10">|</span>
                 <span
                   className="hover:text-emerald-400 transition-colors cursor-pointer"

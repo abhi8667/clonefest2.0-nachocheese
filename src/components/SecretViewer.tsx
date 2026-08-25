@@ -22,7 +22,11 @@ import {
   File, 
   ShieldAlert,
   Users,
-  KeyRound
+  KeyRound,
+  Share2,
+  Cpu,
+  Fingerprint,
+  Plus
 } from 'lucide-react';
 import { PasteResponse, DecryptedSecret, StoredComment, RecipientEnvelopeSlot } from '../types';
 import { TerminalWindow } from './TerminalWindow';
@@ -31,8 +35,10 @@ import {
   encryptSecret, 
   generateMasterKey,
   unwrapRecipientEnvelope,
-  decryptMultiRecipientSecret 
+  decryptMultiRecipientSecret,
+  combineQuorumSharesToCek
 } from '../crypto/webcrypto';
+import { cyberAudio } from '../utils/cyberAudio';
 
 interface SecretViewerProps {
   pasteId: string;
@@ -49,6 +55,15 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   const [effectiveCEK, setEffectiveCEK] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Quorum (Shamir M-of-N) Unlock State
+  const [isQuorum, setIsQuorum] = useState<boolean>(false);
+  const [quorumThreshold, setQuorumThreshold] = useState<number>(2);
+  const [quorumTotalShares, setQuorumTotalShares] = useState<number>(3);
+  const [enteredShares, setEnteredShares] = useState<string[]>([]);
+  const [newShareInput, setNewShareInput] = useState<string>('');
+  const [quorumError, setQuorumError] = useState<string | null>(null);
+  const [isCombiningShares, setIsCombiningShares] = useState<boolean>(false);
 
   // Password Decryption State
   const [isPasswordRequired, setIsPasswordRequired] = useState<boolean>(false);
@@ -128,6 +143,35 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
         setTimeRemaining(Math.max(0, data.expireAt - now));
       }
 
+      // Check if Quorum threshold secret
+      if (data.payload?.quorum) {
+        setIsQuorum(true);
+        const thresh = data.payload.quorum.threshold || 2;
+        const total = data.payload.quorum.totalShares || 3;
+        setQuorumThreshold(thresh);
+        setQuorumTotalShares(total);
+
+        const initialShares: string[] = [];
+        if (masterKey && masterKey.trim()) {
+          initialShares.push(masterKey.trim());
+          setEnteredShares(initialShares);
+        }
+
+        if (initialShares.length >= thresh) {
+          try {
+            const recoveredKey = await combineQuorumSharesToCek(initialShares);
+            setEffectiveCEK(recoveredKey);
+            const decrypted = await decryptSecret(data.payload, recoveredKey);
+            setDecryptedSecret(decrypted);
+            cyberAudio.playDecryptSuccess();
+            decryptComments(data.comments || [], recoveredKey);
+          } catch (err) {
+            setIsPasswordRequired(true);
+          }
+        }
+        return;
+      }
+
       // Determine if multi-recipient envelope decryption is needed
       if (data.isMultiRecipient) {
         const envelope = data.activeSlot || data.envelopes?.find((e: RecipientEnvelopeSlot) => e.slotId === slotId);
@@ -142,6 +186,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           const decrypted = await decryptSecret(data.payload, unwrappedKey);
           setEffectiveCEK(unwrappedKey);
           setDecryptedSecret(decrypted);
+          cyberAudio.playDecryptSuccess();
           decryptComments(data.comments || [], unwrappedKey);
         } catch (err) {
           // Password required for this slot or master payload
@@ -152,7 +197,9 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
         setEffectiveCEK(masterKey);
         try {
           const decrypted = await decryptSecret(data.payload, masterKey);
+          setEffectiveCEK(masterKey);
           setDecryptedSecret(decrypted);
+          cyberAudio.playDecryptSuccess();
           decryptComments(data.comments || [], masterKey);
         } catch (err) {
           setIsPasswordRequired(true);
@@ -228,6 +275,58 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     setComments(decryptedList);
   };
 
+  // Quorum Share Helpers
+  const handleAddQuorumShare = (input: string) => {
+    let clean = input.trim();
+    if (clean.includes('k=')) {
+      try {
+        const hash = clean.includes('#') ? clean.split('#')[1] : clean.split('?')[1] || clean;
+        const params = new URLSearchParams(hash);
+        const k = params.get('k');
+        if (k) clean = k;
+      } catch (_) {}
+    }
+    if (!clean) return;
+    if (enteredShares.includes(clean)) {
+      setQuorumError('This share has already been entered.');
+      return;
+    }
+    const updated = [...enteredShares, clean];
+    setEnteredShares(updated);
+    setNewShareInput('');
+    setQuorumError(null);
+  };
+
+  const handleRemoveQuorumShare = (idx: number) => {
+    setEnteredShares(enteredShares.filter((_, i) => i !== idx));
+  };
+
+  const handleQuorumUnlock = async () => {
+    try {
+      setIsCombiningShares(true);
+      setQuorumError(null);
+      if (enteredShares.length < quorumThreshold) {
+        throw new Error(`Need at least ${quorumThreshold} shares to reconstruct key (${enteredShares.length} entered).`);
+      }
+      const recoveredKey = await combineQuorumSharesToCek(enteredShares);
+      setEffectiveCEK(recoveredKey);
+      const decrypted = await decryptSecret(pasteData!.payload, recoveredKey, password.trim() || undefined);
+      setDecryptedSecret(decrypted);
+      cyberAudio.playDecryptSuccess();
+      setIsPasswordRequired(false);
+      decryptComments(pasteData!.comments || [], recoveredKey);
+    } catch (err: any) {
+      console.error('Quorum unlock error:', err);
+      if (err.message && err.message.includes('Password')) {
+        setIsPasswordRequired(true);
+      } else {
+        setQuorumError(err.message || 'Failed to reconstruct secret from entered shares.');
+      }
+    } finally {
+      setIsCombiningShares(false);
+    }
+  };
+
   // Password decryption attempt (also handles Duress Password & Envelope password)
   const handlePasswordDecrypt = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,22 +336,30 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
       setIsDecrypting(true);
       setDecryptError(null);
 
-      if (pasteData.isMultiRecipient && activeSlotInfo) {
+      if (isQuorum && effectiveCEK) {
+        const decrypted = await decryptSecret(pasteData.payload, effectiveCEK, password.trim());
+        setDecryptedSecret(decrypted);
+        cyberAudio.playDecryptSuccess();
+        setIsPasswordRequired(false);
+        decryptComments(pasteData.comments || [], effectiveCEK);
+      } else if (pasteData.isMultiRecipient && activeSlotInfo) {
         const unwrappedKey = await unwrapRecipientEnvelope(activeSlotInfo, masterKey, password.trim());
         const decrypted = await decryptSecret(pasteData.payload, unwrappedKey, password.trim());
         setEffectiveCEK(unwrappedKey);
         setDecryptedSecret(decrypted);
+        cyberAudio.playDecryptSuccess();
         setIsPasswordRequired(false);
         decryptComments(pasteData.comments || [], unwrappedKey);
       } else {
         const decrypted = await decryptSecret(pasteData.payload, masterKey, password.trim());
         setEffectiveCEK(masterKey);
         setDecryptedSecret(decrypted);
+        cyberAudio.playDecryptSuccess();
         setIsPasswordRequired(false);
         decryptComments(pasteData.comments || [], masterKey);
       }
     } catch (err: any) {
-      setDecryptError('Decryption failed. Incorrect password.');
+      setDecryptError('Decryption failed. Incorrect passphrase or duress key mismatch.');
     } finally {
       setIsDecrypting(false);
     }
@@ -341,6 +448,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   const copyToClipboard = async (textToCopy: string) => {
     try {
       await navigator.clipboard.writeText(textToCopy);
+      cyberAudio.playClick(1400, 0.02);
       setCopiedText(true);
       setTimeout(() => setCopiedText(false), 2000);
     } catch (_) {}
@@ -425,6 +533,158 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
         >
           Create New Secret
         </button>
+      </div>
+      </TerminalWindow>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------
+  // RENDER: Quorum Unlock Portal (Shamir M-of-N)
+  // ----------------------------------------------------
+
+  if (isQuorum && !decryptedSecret && !isPasswordRequired) {
+    const isThresholdReached = enteredShares.length >= quorumThreshold;
+    return (
+      <div className="max-w-2xl mx-auto animate-fadeIn">
+      <TerminalWindow path="anonymous@cipherdrop — quorum-unlock" glow className="shadow-2xl">
+      <div className="p-6 sm:p-8 space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+            <Share2 className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="font-mono text-xl font-bold text-slate-100 flex items-center gap-2">
+              Quorum Threshold Unlock
+              <span className="px-2 py-0.5 rounded text-xs font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                {enteredShares.length} / {quorumThreshold} Required
+              </span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              This secret is split across <strong>{quorumTotalShares}</strong> polynomial shares. Enter any <strong>{quorumThreshold}</strong> trustee shares to mathematically reconstruct the master key.
+            </p>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs font-mono text-slate-400">
+            <span>Trustee Approvals Progress</span>
+            <span className="text-emerald-400 font-bold">
+              {Math.min(100, Math.round((enteredShares.length / quorumThreshold) * 100))}%
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-obsidian-950 border border-white/10 overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
+              style={{ width: `${Math.min(100, (enteredShares.length / quorumThreshold) * 100)}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Entered Shares List */}
+        <div className="space-y-2">
+          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">
+            Collected Trustee Shares ({enteredShares.length})
+          </span>
+
+          {enteredShares.length === 0 ? (
+            <div className="p-4 bg-obsidian-950 rounded-xl border border-dashed border-white/10 text-center text-xs text-slate-500 font-mono">
+              No trustee shares entered yet. Paste share keys or links below.
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {enteredShares.map((share, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-2 p-2.5 bg-obsidian-950 rounded-xl border border-white/10 text-xs font-mono">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center border border-emerald-500/20 flex-shrink-0">
+                      {idx + 1}
+                    </span>
+                    <span className="text-emerald-300 truncate">{share}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveQuorumShare(idx)}
+                    className="text-slate-500 hover:text-rose-400 p-1 rounded transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Share Entry Input */}
+        <div className="space-y-2">
+          <label className="block text-xs font-mono text-slate-300">
+            Paste Next Trustee Share Key or Link:
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newShareInput}
+              onChange={(e) => setNewShareInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddQuorumShare(newShareInput);
+                }
+              }}
+              placeholder="Paste trustee URL or share key (e.g. qs_1_...)"
+              className="w-full glass-input px-3 py-2 rounded-xl text-xs font-mono text-slate-100 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => handleAddQuorumShare(newShareInput)}
+              className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold font-mono transition-all flex items-center gap-1 whitespace-nowrap"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Share
+            </button>
+          </div>
+        </div>
+
+        {quorumError && (
+          <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+            <span>{quorumError}</span>
+          </div>
+        )}
+
+        {/* Action Button */}
+        <div className="flex items-center justify-between pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-obsidian-900 border border-white/10"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            disabled={!isThresholdReached || isCombiningShares}
+            onClick={() => handleQuorumUnlock()}
+            className="btn-cyber-primary flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
+          >
+            {isCombiningShares ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                <span>Combining Shamir Polynomials…</span>
+              </>
+            ) : (
+              <>
+                <Unlock className="w-4 h-4" />
+                <span>
+                  {isThresholdReached 
+                    ? 'Reconstruct Key & Decrypt Secret' 
+                    : `Need ${quorumThreshold - enteredShares.length} More Share${quorumThreshold - enteredShares.length === 1 ? '' : 's'}`}
+                </span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
       </TerminalWindow>
       </div>
@@ -533,6 +793,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   // ----------------------------------------------------
 
   if (isPasswordRequired && !decryptedSecret) {
+    const isArgon2 = pasteData?.payload?.kdf === 'argon2id';
     return (
       <div className="max-w-md mx-auto">
       <TerminalWindow path="anonymous@cipherdrop — locked" glow>
@@ -542,22 +803,22 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
             <Lock className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="font-mono text-lg font-bold text-slate-100">Password Protected Secret</h2>
+            <h2 className="font-mono text-lg font-bold text-slate-100">Passphrase Protected Secret</h2>
             <p className="text-xs text-slate-400">
-              {activeSlotInfo ? `Enter passphrase for recipient [${activeSlotInfo.label}]` : 'Enter password to derive AES-256 key'}
+              {activeSlotInfo ? `Enter passphrase for recipient [${activeSlotInfo.label}]` : 'Enter passphrase to derive AES-256 key'}
             </p>
           </div>
         </div>
 
         <form onSubmit={handlePasswordDecrypt} className="space-y-4">
           <div>
-            <label className="block text-xs font-mono text-slate-300 uppercase mb-1">Decryption Password</label>
+            <label className="block text-xs font-mono text-slate-300 uppercase mb-1">Decryption Passphrase</label>
             <input
               type="password"
               autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password…"
+              placeholder="Enter passphrase…"
               className="w-full glass-input px-4 py-3 rounded-xl text-sm font-mono text-slate-100 focus:outline-none"
             />
           </div>
@@ -577,7 +838,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
             {isDecrypting ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                <span>Deriving Key (600,000 rounds)...</span>
+                <span>{isArgon2 ? 'Deriving Argon2id (64MB WASM)...' : 'Deriving PBKDF2 (600k rounds)...'}</span>
               </>
             ) : (
               <>
@@ -588,8 +849,15 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
           </button>
         </form>
 
-        <div className="text-[11px] text-slate-500 text-center font-mono">
-          PBKDF2-SHA256 • Hardware Accelerated
+        <div className="text-[11px] text-slate-500 text-center font-mono flex items-center justify-center gap-1.5">
+          {isArgon2 ? (
+            <>
+              <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-emerald-400 font-semibold">Argon2id WASM (64MB Memory-Hard)</span>
+            </>
+          ) : (
+            <span>PBKDF2-SHA256 • Hardware Accelerated</span>
+          )}
         </div>
       </div>
       </TerminalWindow>
@@ -645,10 +913,24 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-sm font-mono font-bold text-slate-100">Decrypted Successfully</h2>
               
+              {isQuorum && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono flex items-center gap-1">
+                  <Share2 className="w-3 h-3 text-emerald-400" />
+                  Quorum Reconstructed ({quorumThreshold}/{quorumTotalShares})
+                </span>
+              )}
+
               {activeSlotInfo && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono flex items-center gap-1">
                   <Users className="w-3 h-3 text-emerald-400" />
                   Slot: {activeSlotInfo.label}
+                </span>
+              )}
+
+              {pasteData?.payload?.kdf === 'argon2id' && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/30 font-mono flex items-center gap-1">
+                  <Cpu className="w-3 h-3 text-teal-400" />
+                  Argon2id (64MB)
                 </span>
               )}
 
@@ -658,7 +940,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
                 </span>
               )}
 
-              {!activeSlotInfo && pasteData?.burnAfterReading && (
+              {!activeSlotInfo && !isQuorum && pasteData?.burnAfterReading && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono">
                   🔥 Server Copy Burned
                 </span>
@@ -671,7 +953,11 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
               )}
             </div>
             <p className="text-xs text-slate-400 font-mono">
-              {activeSlotInfo ? 'Envelope Key Unwrapped • AES-256-GCM Payload Decrypted' : 'AES-256-GCM • Tag Verified • Zero Server Knowledge'}
+              {isQuorum 
+                ? 'Shamir Polynomial Shares Combined • AES-256-GCM Tag Verified'
+                : activeSlotInfo 
+                ? 'Envelope Key Unwrapped • AES-256-GCM Payload Decrypted' 
+                : 'AES-256-GCM • Tag Verified • Zero Server Knowledge'}
             </p>
           </div>
         </div>
