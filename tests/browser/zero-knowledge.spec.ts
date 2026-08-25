@@ -32,9 +32,18 @@ test('secret round-trips through real browser WebCrypto and plaintext never reac
 
   await page.goto('/');
 
+  // Navigate through Mode Selection Screen to Operator Mode
+  const operatorCard = page.getByRole('button', { name: /Operator/i }).first();
+  await operatorCard.click();
+
+  // Navigate through Onboarding Landing Screen
+  const proceedButton = page.getByRole('button', { name: /Create Your First Secret/i });
+  await expect(proceedButton).toBeVisible({ timeout: 5000 });
+  await proceedButton.click();
+
   // Switch to raw Plaintext mode and enter the secret.
   await page.getByRole('button', { name: 'Plaintext' }).click();
-  await page.getByPlaceholder('Paste confidential message, passwords, or sensitive notes here...').fill(SECRET_TEXT);
+  await page.getByPlaceholder(/Paste confidential message/i).fill(SECRET_TEXT);
 
   await page.getByRole('button', { name: /Encrypt & Create Secret Link/i }).click();
 

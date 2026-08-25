@@ -1,12 +1,12 @@
 {
   "engine": "CipherDrop Sovereign Cryptographic Core",
   "version": "2.0.0",
-  "file": "index-DILHLEez.js",
-  "sha384": "rAd9UqjN3AIwkHgtQIGpMll4PqCPDCo2rcJrDFO8Y1KWYnCBfsiLzNxQI6jivbOn",
-  "sri": "sha384-rAd9UqjN3AIwkHgtQIGpMll4PqCPDCo2rcJrDFO8Y1KWYnCBfsiLzNxQI6jivbOn",
+  "file": "index-U3FO9DD9.js",
+  "sha384": "MZVAOEWMKm1OHIR2zvpDfmejm8/PpdCFLdR8owNTrYym9HWd5fWdPb0RdA22E1ID",
+  "sri": "sha384-MZVAOEWMKm1OHIR2zvpDfmejm8/PpdCFLdR8owNTrYym9HWd5fWdPb0RdA22E1ID",
   "sourceSha384": "M6Buof73PSFMiIUR4p7Xf2I7MEy9NdsvCzUQMyVdtUZGcP6jhSBA57CeLpp+6Iis",
   "sourceSri": "sha384-M6Buof73PSFMiIUR4p7Xf2I7MEy9NdsvCzUQMyVdtUZGcP6jhSBA57CeLpp+6Iis",
-  "builtAt": "2026-08-25T08:45:23.830Z",
+  "builtAt": "2026-08-25T17:35:40.474Z",
   "commit": "7a8f3b2",
   "threatModelVersion": "2.0.7",
   "verificationStatus": "VERIFIED_ZERO_KNOWLEDGE"
