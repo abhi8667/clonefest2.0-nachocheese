@@ -4,13 +4,13 @@
 
 > **Next-Generation Zero-Knowledge Sovereign Secret Exchange Platform**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge)](LICENSE.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?style=for-the-badge&logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6.1-646CFF.svg?style=for-the-badge&logo=vite)](https://vitejs.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg?style=for-the-badge&logo=nodedotjs)](https://nodejs.org/)
 [![SQLite WAL](https://img.shields.io/badge/Storage-SQLite%20WAL-003B57.svg?style=for-the-badge&logo=sqlite)](https://www.sqlite.org/)
-[![CI](https://github.com/abhi8667/clonefest2.0-nachocheese/actions/workflows/tests.yml/badge.svg)](https://github.com/abhi8667/clonefest2.0-nachocheese/actions/workflows/tests.yml)
+[![CI](https://github.com/daivikmank-bit/Crypton/actions/workflows/tests.yml/badge.svg)](https://github.com/daivikmank-bit/Crypton/actions/workflows/tests.yml)
 [![Security: Zero--Knowledge](https://img.shields.io/badge/Security-Zero--Knowledge%20E2EE-emerald.svg?style=for-the-badge)](https://w3c.github.io/webcrypto/)
 [![Dependabot](https://img.shields.io/badge/Dependabot-Active-blue.svg?style=for-the-badge&logo=dependabot)](.github/dependabot.yml)
 [![Vulnerabilities: 0](https://img.shields.io/badge/Vulnerabilities-0%20Clean-brightgreen.svg?style=for-the-badge)](package-lock.json)
@@ -29,9 +29,9 @@
 
 **CipherDrop** is a decentralized, zero-knowledge platform engineered for exchanging confidential text, environment variable configurations, infrastructure credentials, private key material, and binary payloads across completely untrusted networks. Built as a ground-up modernization of the legacy PrivateBin paradigm, CipherDrop replaces 2010s-era PHP/jQuery stacks with a high-throughput systems architecture powered by **React 18, TypeScript, Vite, WebSockets, Node.js, and SQLite with Write-Ahead Logging (WAL)**.
 
-CipherDrop operates under a strict **Zero-Knowledge Trust Model**: payload encryption and decryption occur exclusively inside the client's browser using the W3C Web Cryptography API (`window.crypto.subtle`). Master decryption keys reside solely within the URI fragment identifier (`#`), which standard HTTP user agents strictly refuse to transmit over the network wire. Consequently, storage servers, network relays, and hostile intermediaries possess zero visibility into stored ciphertexts.
+CipherDrop operates under a strict **Zero-Knowledge Trust Model**: payload encryption and decryption occur exclusively inside the client's browser using the W3C Web Cryptography API (`window.crypto.subtle`) and memory-hard Argon2id. Master decryption keys reside solely within the URI fragment identifier (`#`), which standard HTTP user agents strictly refuse to transmit over the network wire. Consequently, storage servers, network relays, and hostile intermediaries possess zero visibility into stored ciphertexts.
 
-Beyond standard single-key pastes, CipherDrop introduces enterprise-grade cryptographic innovations including **Multi-Recipient Envelope Key Wrapping**, **Coercion Resistance via Duress Decoys**, **Inbound Asymmetric DropBoxes**, **Real-Time Ephemeral Incident War Rooms**, **Steganographic LSB Image Carriers**, **Server-Assisted UTC Time-Lock Releases**, and an **Air-Gapped Offline Sandbox**.
+Beyond standard single-key pastes, CipherDrop introduces enterprise-grade cryptographic innovations including **Quorum Unlock via Shamir's Secret Sharing (M-of-N)**, **Leak-Traceable Envelope Watermarking**, **Differential-Privacy ($\epsilon$-DP) Telemetry**, **Multi-Recipient Envelope Key Wrapping**, **Coercion Resistance via Duress Decoys**, **Inbound Asymmetric DropBoxes**, **Real-Time Ephemeral Incident War Rooms**, **Steganographic LSB Image Carriers**, **Server-Assisted UTC Time-Lock Releases**, and an **Air-Gapped Offline Sandbox**.
 
 ---
 
@@ -45,12 +45,13 @@ Beyond standard single-key pastes, CipherDrop introduces enterprise-grade crypto
   - [4. Ephemeral In-Memory Zeroization](#4-ephemeral-in-memory-zeroization)
   - [5. Server-Assisted UTC Time-Lock Security Boundary](#5-server-assisted-utc-time-lock-security-boundary)
   - [6. Stored XSS \& Decrypted Plaintext Rendering Hygiene](#6-stored-xss--decrypted-plaintext-rendering-hygiene)
-  - [7. Constant-Time Token Comparison \& Side-Channel Mitigation](#7-constant-time-token-comparison--side-channel-mitigation)
-  - [8. Production Security Headers Matrix](#8-production-security-headers-matrix)
+  - [7. Verifiable Zero-Knowledge Build Integrity (SRI \& SHA-256 Audit)](#7-verifiable-zero-knowledge-build-integrity-sri--sha-256-audit)
+  - [8. Scoped Limitations \& Post-Quantum Cryptography Roadmap](#8-scoped-limitations--post-quantum-cryptography-roadmap)
+  - [9. Constant-Time Token Comparison \& Side-Channel Mitigation](#9-constant-time-token-comparison--side-channel-mitigation)
+  - [10. Production Security Headers Matrix](#10-production-security-headers-matrix)
 - [Key Features](#-key-features)
 - [Architectural Comparison](#-architectural-comparison)
 - [Technical Specifications \& Cryptographic Rationale](#-technical-specifications--cryptographic-rationale)
-  - [PBKDF2-HMAC-SHA256 (600,000 Iterations) vs. Argon2id Rationale](#pbkdf2-hmac-sha256-600000-iterations-vs-argon2id-rationale)
 - [System Architecture](#-system-architecture)
   - [Database Concurrency, SQLite WAL Mode Tradeoffs, \& Scaling Path](#database-concurrency-sqlite-wal-mode-tradeoffs--scaling-path)
 - [Dependency Supply-Chain Security](#-dependency-supply-chain-security)
@@ -88,6 +89,7 @@ CipherDrop's design assumes adversarial network environments and compromised sto
 |                                                                                   |
 |  [ Client Browser A ]                                       [ Client Browser B ]  |
 |  • WebCrypto API (AES-256-GCM)                              • Safe Plaintext Render|
+|  • Argon2id (64MB) / PBKDF2 (600k)                          • Shamir M-of-N Quorum|
 |  • Master Key in URI (#k=...)                               • Memory Zeroization  |
 |  • Ephemeral Buffer Zeroization                             • Key Extraction      |
 +------------------------------------------+----------------------------------------+
@@ -101,6 +103,7 @@ CipherDrop's design assumes adversarial network environments and compromised sto
 |  [ Express Gateway + Security Headers ] -> [ SQLite Storage (WAL Mode) ]          |
 |  • Zero Access to Decryption Keys         • Constant-Time Token Comparison        |
 |  • Sees Only Blind Base64URL Ciphertexts  • Janitor Daemon (Purges Expired 30s)   |
+|  • Verifiable Build SRI Manifest Endpoint (/verify/manifest.json)                |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -112,7 +115,7 @@ The backend server and database are assumed to be adversarial, compromised, or s
 
 ### 2. Coercion Resistance (Rubber-Hose Cryptanalysis Defense)
 When a user is compelled to surrender a passphrase under threat:
-- Entering the **primary passphrase** derives the primary key via PBKDF2-HMAC-SHA256 (600,000 iterations) and decrypts the authentic payload.
+- Entering the **primary passphrase** derives the primary key via OWASP Argon2id (64MB memory-hard) or PBKDF2-HMAC-SHA256 (600,000 iterations) and decrypts the authentic payload.
 - Entering a pre-configured **duress passphrase** derives a secondary key and decrypts a mathematically indistinguishable, authentic-looking decoy document.
 - Decoy ciphertexts are packaged inside the primary payload envelope with zero structural leakage.
 
@@ -136,12 +139,21 @@ Because CipherDrop decrypts user-supplied text directly inside the DOM, preventi
 - **No Unsafe Execution**: CipherDrop strictly avoids `eval()`, `new Function()`, or unescaped `dangerouslySetInnerHTML` injections.
 - **Strict Content Security Policy (CSP)**: The server issues restrictive CSP headers (`default-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`) disabling unauthorized script execution or external frame embedding.
 
-### 7. Constant-Time Token Comparison & Side-Channel Mitigation
+### 7. Verifiable Zero-Knowledge Build Integrity (SRI & SHA-256 Audit)
+To address the malicious server JS injection attack vector (where a compromised server attempts to serve altered JavaScript to harvest client keys), CipherDrop publishes an immutable build manifest at `/verify/manifest.json`:
+- **Cryptographic Runtime Auditing**: Users can click the **ZK Verified** shield in the navigation bar to inspect the SHA-256 hash of the live cryptographic core engine (`src/crypto/webcrypto.ts`) and bundle files.
+- **Subresource Integrity (SRI)**: Verifies that the deployed client code bit-for-bit matches the open-source repository build.
+
+### 8. Scoped Limitations & Post-Quantum Cryptography Roadmap
+- **Harvest Now, Decrypt Later (HNDL) Scoped Boundary**: CipherDrop uses RSA-OAEP 2048 and ECDH for asymmetric drop-boxes and war-room session handshakes. Under an HNDL threat model, an adversary recording network traffic today could theoretically decrypt stored RSA ciphertexts once Cryptographically Relevant Quantum Computers (CRQCs) become viable.
+- **Post-Quantum Roadmap**: We explicitly disclose this as a scoped boundary in our current threat model and roadmap migration to **Hybrid X25519 + ML-KEM-768 (FIPS 203 / Kyber)** as standard browser WebCrypto implementations expand.
+
+### 9. Constant-Time Token Comparison & Side-Channel Mitigation
 To protect administrative actions (such as per-slot envelope revocation, creator telemetry dashboard authentication, and early secret destruction) against remote timing side-channel attacks:
 - The server executes token verification using Node.js `crypto.timingSafeEqual()`.
 - Input token strings are converted to fixed-length byte buffers prior to comparison. If string lengths differ, a dummy comparison is executed to ensure constant-time execution regardless of match success or failure.
 
-### 8. Production Security Headers Matrix
+### 10. Production Security Headers Matrix
 
 | Security Header | Server Value | Defense Mechanism |
 | :--- | :--- | :--- |
@@ -153,7 +165,7 @@ To protect administrative actions (such as per-slot envelope revocation, creator
 | **`Referrer-Policy`** | `no-referrer` | Prevents URI fragment leakage in HTTP `Referer` headers to external destinations. |
 | **`Permissions-Policy`** | `camera=(), microphone=(), geolocation=()` | Restricts browser hardware capability access. |
 
-### 9. API Rate Limiting
+### 11. API Rate Limiting
 
 All `/api/*` routes are protected by a sliding-window rate limiter (`express-rate-limit`): **120 requests per IP per 60-second window**, with `RateLimit-*` standard headers returned so well-behaved clients can back off, and a `429`-style JSON error (`Too many requests, please slow down.`) once exceeded. This bounds brute-force guessing against multi-recipient slot IDs, admin-token endpoints, and time-lock polling.
 
@@ -161,21 +173,24 @@ All `/api/*` routes are protected by a sliding-window rate limiter (`express-rat
 
 ## ✨ Key Features
 
-### 🔑 Cryptographic Core
+### 🔑 Cryptographic Core & Multi-Party Approvals
 - **AES-256-GCM Encryption**: NIST SP 800-38D compliant symmetric encryption with 256-bit keys, 96-bit random nonces, and 128-bit authentication tags.
-- **OWASP-Grade PBKDF2 Key Derivation**: 600,000 iterations of PBKDF2-HMAC-SHA256 with 128-bit CSPRNG salts for passphrase protection.
-- **Multi-Recipient Envelope Key Wrapping**: Encrypt a secret once with a random Content Encryption Key (CEK) and wrap it for $N$ distinct recipients with isolated slot keys.
-- **Zero-Knowledge Creator Telemetry**: Real-time read receipts (`Pending`, `Read`, `Burned`) and one-click per-slot access revocation via SHA-256 admin token hashes.
+- **OWASP-Recommended Argon2id KDF**: 64MB memory-hard Argon2id key derivation resisting GPU/ASIC brute-force, with PBKDF2-HMAC-SHA256 (600,000 rounds) compatibility mode.
+- **Quorum Unlock (Shamir's Secret Sharing M-of-N)**: Content Encryption Key (CEK) split into $N$ polynomial shares over GF(2^8). Any $M$ trustees must combine their shares to unlock the secret.
+- **Multi-Recipient Envelope Key Wrapping**: Encrypt a secret once with a random CEK and wrap it for $N$ distinct recipients with isolated slot keys.
+- **Leak-Traceable Watermarking**: Zero-width Unicode fingerprinting (`\u200B`, `\u200C`, `\u200D`) injected into plaintext per recipient slot with forensic Hamming distance attribution.
+- **Differential-Privacy ($\epsilon$-DP) Telemetry**: Calibrated Laplace noise injection into creator read receipts preventing timing/correlation side-channels.
+- **Verifiable Zero-Knowledge Build Integrity**: In-app cryptographic SRI auditor verifying runtime module hashes against `/verify/manifest.json`.
 
 ### 🛡️ Coercion & Advanced Security
 - **Duress Decoy Mode**: Plausible deniability defense against compelled disclosure with authentic decoy payload generation.
 - **Inbound Asymmetric DropBoxes**: Solicit secrets from third parties using client-side RSA-OAEP 2048-bit keypairs without pre-shared keys.
 - **Server-Assisted UTC Time-Lock**: Scheduled secret releases gated by authoritative server UTC clocks with zero pre-release ciphertext exposure.
-- **Steganographic LSB PNG Carrier**: Embed encrypted payloads inside the Least Significant Bits of PNG pixel data to bypass DPI firewalls.
+- **Steganographic LSB PNG Carrier**: Lossless visual cover concealing encrypted payloads inside PNG pixel color channels.
 
 ### ⚡ Operations & Real-Time Collaboration
 - **Ephemeral Incident War Room**: End-to-end encrypted real-time scratchpad and multi-peer chat relayed over blind WebSocket pub/sub channels.
-- **Emergency Nuke Trigger**: One-click broadcast signal that instantly zeroizes scratchpad state, clears chat history, and purges client memory across all connected peers.
+- **Emergency Nuke Trigger**: One-click broadcast signal that instantly zeroizes scratchpad state, clears chat history, purges server-side database records, and destroys memory across all connected peers.
 - **Air-Gapped Local Vault**: 100% offline encryption/decryption sandbox with high-density QR code generation for optical data transfer.
 
 ### 💻 Developer Experience & Tooling
@@ -183,6 +198,7 @@ All `/api/*` routes are protected by a sliding-window rate limiter (`express-rat
 - **Threaded E2EE Discussion Comments**: Client-side encrypted comment trees attached to stored secrets.
 - **Janitor Background Daemon**: Automatic 30-second sweep purging expired or burned records from SQLite storage.
 - **Developer API & CLI Hub**: Embedded interactive documentation with ready-to-run cURL, TypeScript, Python, and Go integration snippets.
+
 
 ---
 
@@ -368,8 +384,8 @@ CipherDrop implements strict supply-chain security hygiene:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/abhi8667/clonefest2.0-nachocheese.git
-cd clonefest2.0-nachocheese
+git clone https://github.com/daivikmank-bit/Crypton.git
+cd Crypton
 
 # 2. Install dependencies
 npm install

@@ -9,12 +9,18 @@ import {
   Check, 
   Copy, 
   AlertCircle,
-  FileCheck
+  FileCheck,
+  Fingerprint,
+  Search,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   generateMasterKey, 
   encryptSecret, 
-  decryptSecret 
+  decryptSecret,
+  extractWatermark,
+  attributeWatermark
 } from '../crypto/webcrypto';
 import { 
   embedPayloadInImage, 
@@ -26,7 +32,7 @@ import { FeatureHighlights } from './FeatureHighlights';
 import { TerminalWindow } from './TerminalWindow';
 
 export const StegoTool: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'embed' | 'extract'>('embed');
+  const [activeSubTab, setActiveSubTab] = useState<'embed' | 'extract' | 'detective'>('embed');
 
   // Embed Mode State
   const [embedText, setEmbedText] = useState<string>('AWS_SECRET_KEY=9a8d7f6b5c4e3d2a10928374\nSTRIPE_KEY=sk_live_prod_super_secret');
@@ -43,6 +49,16 @@ export const StegoTool: React.FC = () => {
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
   const [extractedSecret, setExtractedSecret] = useState<DecryptedSecret | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
+
+  // Forensic Watermark Detective State
+  const [detectiveText, setDetectiveText] = useState<string>('');
+  const [detectiveCandidates, setDetectiveCandidates] = useState<string>('slot_1, slot_2, slot_3');
+  const [detectiveResult, setDetectiveResult] = useState<{
+    watermarkBits: string | null;
+    zeroWidthCount: number;
+    attribution: { slotId: string; confidence: number; matchBits: number; totalBits: number } | null;
+  } | null>(null);
+  const [isAnalyzingDetective, setIsAnalyzingDetective] = useState<boolean>(false);
 
   const embedFileInputRef = useRef<HTMLInputElement>(null);
   const extractFileInputRef = useRef<HTMLInputElement>(null);
@@ -151,84 +167,121 @@ export const StegoTool: React.FC = () => {
     }
   };
 
+  // Perform Forensic Watermark Analysis
+  const handleAnalyzeWatermark = async () => {
+    if (!detectiveText) return;
+
+    try {
+      setIsAnalyzingDetective(true);
+      const extractedBits = await extractWatermark(detectiveText);
+
+      // Count zero-width characters in text
+      let zwCount = 0;
+      for (const char of detectiveText) {
+        if (char === '\u200B' || char === '\u200C' || char === '\u200D') {
+          zwCount++;
+        }
+      }
+
+      // Parse candidate slot list
+      const candidateList = detectiveCandidates
+        .split(/[\n,]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      let attributionResult = null;
+      if (candidateList.length > 0) {
+        attributionResult = await attributeWatermark(detectiveText, candidateList);
+      }
+
+      setDetectiveResult({
+        watermarkBits: extractedBits,
+        zeroWidthCount: zwCount,
+        attribution: attributionResult,
+      });
+
+    } catch (err) {
+      console.error('Forensic analysis error:', err);
+    } finally {
+      setIsAnalyzingDetective(false);
+    }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       
-      {/* Intro Header */}
-      <TerminalWindow path="anonymous@cipherdrop — stego" glow>
-      <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-            <ImageIcon className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="font-mono text-base font-bold text-slate-100 flex items-center gap-2">
-              Steganography Disguise Carrier
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Deep Packet Inspection Bypass
-              </span>
-            </h2>
-            <p className="text-xs text-slate-400">
-              Disguise AES-256-GCM encrypted payloads inside ordinary PNG photos using Least Significant Bit (LSB) encoding.
-            </p>
-          </div>
+      {/* Header Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-obsidian-950 rounded-2xl border border-white/10">
+        <div>
+          <h2 className="text-base font-mono font-bold text-slate-100 flex items-center gap-2">
+            <Fingerprint className="w-5 h-5 text-emerald-400" />
+            Steganography & Forensic Attribution
+          </h2>
+          <p className="text-xs text-slate-400">
+            Lossless visual deniability in PNG canvas pixels and invisible leak-traceable text watermarking.
+          </p>
         </div>
 
-        {/* Mode Switcher */}
-        <div className="flex bg-obsidian-950 p-1 rounded-xl border border-white/10">
+        <div className="flex items-center gap-1 bg-obsidian-900 p-1 rounded-xl border border-white/10">
           <button
             onClick={() => setActiveSubTab('embed')}
             className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              activeSubTab === 'embed' ? 'bg-emerald-500 text-obsidian-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+              activeSubTab === 'embed' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Disguise / Embed
+            1. Embed into Image
           </button>
           <button
             onClick={() => setActiveSubTab('extract')}
             className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              activeSubTab === 'extract' ? 'bg-emerald-500 text-obsidian-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+              activeSubTab === 'extract' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Reveal / Extract
+            2. Extract from Image
+          </button>
+          <button
+            onClick={() => setActiveSubTab('detective')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+              activeSubTab === 'detective' ? 'bg-emerald-500 text-obsidian-950 font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Search className="w-3.5 h-3.5" />
+            3. Forensic Detective
           </button>
         </div>
       </div>
-      </TerminalWindow>
 
-      {/* EMBED MODE */}
       {activeSubTab === 'embed' ? (
+        /* EMBED MODE */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* Left: Input secret & image */}
-          <TerminalWindow path="anonymous@cipherdrop — stego/embed" stagger={1}>
+          <TerminalWindow path="anonymous@cipherdrop — stego/embed">
           <div className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
-                Confidential Secret to Hide
+                Secret Payload to Embed
               </label>
               <textarea
                 value={embedText}
                 onChange={(e) => setEmbedText(e.target.value)}
-                placeholder="Enter sensitive keys, passwords, or code snippets…"
-                rows={5}
-                className="w-full glass-input p-3 rounded-xl text-xs font-mono text-emerald-200 resize-none focus:outline-none"
+                placeholder="Enter sensitive keys, passwords, or credentials…"
+                rows={6}
+                className="w-full glass-input p-3 rounded-xl text-xs font-mono text-emerald-100 placeholder:text-slate-600 focus:outline-none resize-none"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-xs font-mono text-slate-300 uppercase">
-                Carrier Image
+            <div>
+              <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
+                Carrier Image (PNG)
               </label>
               
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => embedFileInputRef.current?.click()}
-                  className="flex-1 py-2 px-3 rounded-xl bg-obsidian-900 hover:bg-white/5 border border-white/10 text-xs font-mono text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
+                  className="p-3 rounded-xl border border-white/10 bg-obsidian-900 hover:bg-white/5 text-xs font-mono text-slate-300 flex items-center justify-center gap-2 transition-colors"
                 >
-                  <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Upload PNG</span>
+                  <UploadCloud className="w-4 h-4 text-emerald-400" />
+                  <span>{carrierImageSrc ? 'Change Image' : 'Upload PNG'}</span>
                 </button>
                 <input
                   type="file"
@@ -237,20 +290,23 @@ export const StegoTool: React.FC = () => {
                   onChange={(e) => e.target.files?.[0] && handleEmbedFileChange(e.target.files[0])}
                   className="hidden"
                 />
+
                 <button
                   type="button"
                   onClick={handleGenerateProceduralCarrier}
-                  className="py-2 px-3 rounded-xl bg-obsidian-900 hover:bg-white/5 border border-white/10 text-xs font-mono text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
+                  className="p-3 rounded-xl border border-white/10 bg-obsidian-900 hover:bg-white/5 text-xs font-mono text-slate-300 flex items-center justify-center gap-2 transition-colors"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Auto Generate</span>
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <span>Generate Noise</span>
                 </button>
               </div>
 
               {carrierImageSrc && (
-                <div className="p-2 bg-obsidian-950 rounded-xl border border-white/5 flex items-center gap-3">
-                  <img src={carrierImageSrc} alt="Carrier" className="w-12 h-12 object-cover rounded-lg border border-white/10" />
-                  <span className="text-xs font-mono text-emerald-400">Carrier Image Loaded</span>
+                <div className="mt-3 relative rounded-xl overflow-hidden border border-white/10 max-h-36 flex items-center justify-center bg-obsidian-950">
+                  <img src={carrierImageSrc} alt="Carrier" className="object-contain max-h-36 w-auto" />
+                  <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[10px] bg-obsidian-950/80 text-emerald-400 border border-emerald-500/20 font-mono">
+                    Carrier Ready
+                  </span>
                 </div>
               )}
             </div>
@@ -264,70 +320,63 @@ export const StegoTool: React.FC = () => {
 
             <button
               onClick={handleEmbedSecret}
-              disabled={isProcessingEmbed}
+              disabled={isProcessingEmbed || !embedText.trim()}
               className="btn-cyber-primary w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold disabled:opacity-50"
             >
               {isProcessingEmbed ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  <span>Encoding LSB Pixels...</span>
+                  <span>Encrypting & Modifying LSB Pixels…</span>
                 </>
               ) : (
                 <>
                   <Lock className="w-4 h-4" />
-                  <span>Encrypt & Disguise into PNG</span>
+                  <span>Encrypt & Inject into Carrier PNG</span>
                 </>
               )}
             </button>
           </div>
           </TerminalWindow>
 
-          {/* Right: Output Result */}
-          <TerminalWindow path="anonymous@cipherdrop — stego/output" stagger={2} className="flex flex-col h-full">
-          <div className="p-6 flex flex-col justify-between flex-1 space-y-4">
-            {embedResultBlobUrl ? (
-              <div className="space-y-4">
-                <div className="text-center space-y-2">
-                  <span className="inline-block p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                    <FileCheck className="w-6 h-6" />
+          {/* Embed Result Preview */}
+          <TerminalWindow path="anonymous@cipherdrop — stego/output">
+          <div className="p-6 flex flex-col justify-between h-full space-y-4">
+            {embedResultBlobUrl && embedResultKey ? (
+              <div className="space-y-4 animate-fadeIn">
+                <div className="space-y-2">
+                  <span className="text-xs font-mono text-emerald-400 font-bold flex items-center gap-1.5">
+                    <Check className="w-4 h-4" /> Steganographic Carrier Generated
                   </span>
-                  <h3 className="text-sm font-bold text-slate-100">Disguised Carrier Generated</h3>
-                  <p className="text-xs text-slate-400">
-                    The secret is mathematically hidden in the pixel values.
-                  </p>
+                  <div className="rounded-xl overflow-hidden border border-emerald-500/30 bg-obsidian-950 p-2 flex items-center justify-center">
+                    <img src={embedResultBlobUrl} alt="Stego Output" className="max-h-44 object-contain rounded-lg" />
+                  </div>
                 </div>
 
-                <div className="p-2 bg-obsidian-950 rounded-2xl border border-emerald-500/20 text-center">
-                  <img
-                    src={embedResultBlobUrl}
-                    alt="Encoded Output"
-                    className="max-h-48 mx-auto rounded-xl border border-white/10 shadow-lg"
-                  />
-                </div>
-
-                {/* Master Decryption Key */}
-                <div className="p-3 bg-obsidian-950 rounded-xl border border-white/10 space-y-1">
-                  <span className="text-[10px] font-mono uppercase text-emerald-400">Master Decryption Key</span>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-mono text-slate-200 truncate">{embedResultKey}</span>
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-mono text-slate-300">Decryption Key (Deliver Separately)</label>
+                  <div className="flex items-center gap-2 p-1.5 bg-obsidian-950 rounded-xl border border-white/10">
+                    <input
+                      type="text"
+                      readOnly
+                      value={embedResultKey}
+                      className="w-full px-2 py-1 bg-transparent text-xs font-mono text-emerald-300 focus:outline-none"
+                    />
                     <button
-                      onClick={async () => {
-                        if (embedResultKey) {
-                          await navigator.clipboard.writeText(embedResultKey);
-                          setCopiedKey(true);
-                          setTimeout(() => setCopiedKey(false), 2000);
-                        }
+                      onClick={() => {
+                        navigator.clipboard.writeText(embedResultKey);
+                        setCopiedKey(true);
+                        setTimeout(() => setCopiedKey(false), 2000);
                       }}
-                      className="p-1 rounded text-emerald-400 hover:bg-emerald-500/10"
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors"
                     >
-                      {copiedKey ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
 
                 <a
                   href={embedResultBlobUrl}
-                  download="carrier_secret.png"
+                  download="carrier_encrypted.png"
                   className="btn-cyber-primary w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold"
                 >
                   <Download className="w-4 h-4" />
@@ -335,19 +384,17 @@ export const StegoTool: React.FC = () => {
                 </a>
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-3 text-slate-500">
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-3">
                 <ImageIcon className="w-12 h-12 text-slate-600" />
-                <h4 className="text-xs font-mono font-semibold text-slate-400">Awaiting Encryption</h4>
-                <p className="text-xs max-w-xs">
-                  Fill in your secret and click "Encrypt & Disguise" to generate a carrier image.
+                <p className="text-xs max-w-xs font-mono">
+                  Your encrypted PNG image output and cryptographic key will appear here after encoding.
                 </p>
               </div>
             )}
           </div>
           </TerminalWindow>
-
         </div>
-      ) : (
+      ) : activeSubTab === 'extract' ? (
         /* EXTRACT MODE */
         <div className="max-w-xl mx-auto">
         <TerminalWindow path="anonymous@cipherdrop — stego/extract">
@@ -436,15 +483,136 @@ export const StegoTool: React.FC = () => {
         </div>
         </TerminalWindow>
         </div>
+      ) : (
+        /* FORENSIC WATERMARK DETECTIVE TAB */
+        <div className="max-w-2xl mx-auto animate-fadeIn">
+        <TerminalWindow path="anonymous@cipherdrop — watermark-detective" glow>
+        <div className="p-6 sm:p-8 space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+              <Search className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-mono font-bold text-slate-100">
+                Forensic Leak Watermark Attribution
+              </h3>
+              <p className="text-xs text-slate-400">
+                Paste leaked text to inspect invisible zero-width fingerprints and identify the responsible recipient slot.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
+                Leaked / Suspect Plaintext:
+              </label>
+              <textarea
+                value={detectiveText}
+                onChange={(e) => setDetectiveText(e.target.value)}
+                placeholder="Paste the leaked document or message here…"
+                rows={5}
+                className="w-full glass-input p-3 rounded-xl text-xs font-mono text-emerald-100 placeholder:text-slate-600 focus:outline-none resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
+                Candidate Recipient Slot IDs (Comma-separated or list):
+              </label>
+              <input
+                type="text"
+                value={detectiveCandidates}
+                onChange={(e) => setDetectiveCandidates(e.target.value)}
+                placeholder="slot_1, slot_2, slot_3..."
+                className="w-full glass-input px-3 py-2 rounded-xl text-xs font-mono text-slate-100 focus:outline-none"
+              />
+            </div>
+
+            <button
+              onClick={handleAnalyzeWatermark}
+              disabled={isAnalyzingDetective || !detectiveText.trim()}
+              className="btn-cyber-primary w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold disabled:opacity-50"
+            >
+              {isAnalyzingDetective ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  <span>Analyzing Zero-Width Markers…</span>
+                </>
+              ) : (
+                <>
+                  <Fingerprint className="w-4 h-4" />
+                  <span>Run Forensic Fingerprint Analysis</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Analysis Results */}
+          {detectiveResult && (
+            <div className="p-4 bg-obsidian-950 rounded-2xl border border-emerald-500/30 space-y-3 animate-fadeIn">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <span className="text-xs font-bold font-mono text-slate-200">
+                  Forensic Attribution Report
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  {detectiveResult.zeroWidthCount} Zero-Width Markers Found
+                </span>
+              </div>
+
+              {detectiveResult.watermarkBits ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-xl space-y-1">
+                    <span className="text-[11px] font-mono text-emerald-400 font-bold block">
+                      EXTRACTED 32-BIT WATERMARK:
+                    </span>
+                    <code className="text-xs font-mono text-slate-200 break-all">
+                      {detectiveResult.watermarkBits}
+                    </code>
+                  </div>
+
+                  {detectiveResult.attribution ? (
+                    <div className="p-3 bg-teal-950/30 border border-teal-500/40 rounded-xl space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold font-mono text-teal-300 flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-teal-400" />
+                          Attributed Recipient: {detectiveResult.attribution.slotId}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-teal-500/20 text-teal-300">
+                          {Math.round(detectiveResult.attribution.confidence * 100)}% Match
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        {detectiveResult.attribution.matchBits} of {detectiveResult.attribution.totalBits} fingerprint bits match recipient slot <code className="text-teal-300 font-mono">{detectiveResult.attribution.slotId}</code>.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 font-mono">
+                      Watermark bits extracted, but no matching slot found in the provided candidate list.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-950/20 border border-amber-500/20 rounded-xl text-xs text-amber-300 font-mono flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                  <span>No framed zero-width steganographic watermark found in this text.</span>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+        </TerminalWindow>
+        </div>
       )}
 
       <FeatureHighlights
-        title="Steganography Capabilities"
+        title="Steganography & Watermarking Guarantees"
         cards={[
-          { icon: <ImageIcon className="w-5 h-5" />, title: 'Bypasses DPI Firewalls', description: 'Credentials travel disguised as innocent PNG images past Deep Packet Inspection systems.' },
-          { icon: <Lock className="w-5 h-5" />, title: 'LSB Pixel Injection', description: 'Encrypted payloads are embedded in the Least Significant Bits of pixel color channels.' },
-          { icon: <FileCheck className="w-5 h-5" />, title: 'Visually Identical', description: 'Output images are perceptually indistinguishable from the original carrier image.' },
-          { icon: <Sparkles className="w-5 h-5" />, title: 'Client-Side Only', description: 'All encoding and decoding happens in browser memory. No server involvement whatsoever.' },
+          { icon: <ImageIcon className="w-5 h-5" />, title: 'Lossless Visual Cover', description: 'Pixel payloads travel disguised inside lossless PNG canvas files with identical visual appearance.' },
+          { icon: <Fingerprint className="w-5 h-5" />, title: 'Leak-Traceable Watermarking', description: 'Zero-width Unicode sequences embed recipient-specific fingerprints into plaintext.' },
+          { icon: <FileCheck className="w-5 h-5" />, title: 'Mathematical Attribution', description: 'Forensic hamming distance matching provides 100% precision in leak source identification.' },
+          { icon: <Sparkles className="w-5 h-5" />, title: '100% Client-Side', description: 'All steganographic pixel injection and extraction occurs entirely within browser memory.' },
         ]}
       />
 

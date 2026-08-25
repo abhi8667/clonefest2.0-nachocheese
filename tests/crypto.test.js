@@ -213,4 +213,150 @@ test('Multi-Recipient Envelope Encryption (N Recipients with Isolated Keys)', as
   );
 });
 
+test('Argon2id Memory-Hard Key Derivation', async () => {
+  const masterKey = generateMasterKey();
+  const password = 'Argon2idUltraStrongPassphrase2026!';
+  const payload = {
+    text: 'TOP_SECRET_ARGON2ID_DATABASE_KEY=prod_db_master_998877',
+    formatter: 'env',
+  };
+
+  // 1. Encrypt with Argon2id KDF
+  const encrypted = await encryptSecret(payload, masterKey, {
+    password,
+    kdf: 'argon2id',
+  });
+
+  assert.equal(encrypted.kdf, 'argon2id', 'Encrypted payload must record kdf as argon2id');
+  assert.ok(encrypted.salt, 'Must include salt');
+
+  // 2. Decrypt with correct password
+  const decrypted = await decryptSecret(encrypted, masterKey, password);
+  assert.equal(decrypted.text, payload.text, 'Decrypted text must match');
+
+  // 3. Decrypt fails with incorrect password
+  await assert.rejects(
+    async () => {
+      await decryptSecret(encrypted, masterKey, 'WrongArgonPassword123');
+    },
+    /Decryption failed/,
+    'Decryption with incorrect password must fail'
+  );
+});
+
+test('Quorum Secret Sharing (Shamir M-of-N Threshold Unlock)', async () => {
+  const { 
+    splitCekToQuorumShares, 
+    combineQuorumSharesToCek, 
+    encryptQuorumSecret 
+  } = await import('../src/crypto/webcrypto.ts');
+
+  const secretPayload = {
+    text: 'NUCLEAR_LAUNCH_CODES_OR_ROOT_CERT=ALPHA_BRAVO_CHARLIE_999',
+    formatter: 'plaintext',
+  };
+
+  const trustees = [
+    { label: 'Security Lead' },
+    { label: 'Infrastructure Lead' },
+    { label: 'Executive Officer' },
+    { label: 'Compliance Officer' },
+    { label: 'Key Custodian' },
+  ];
+
+  // Configure 3-of-5 threshold
+  const threshold = 3;
+  const quorumResult = await encryptQuorumSecret(secretPayload, threshold, trustees);
+
+  assert.equal(quorumResult.shares.length, 5, 'Must generate 5 shares');
+  assert.equal(quorumResult.payload.quorum?.threshold, 3, 'Payload must record threshold 3');
+  assert.equal(quorumResult.payload.quorum?.totalShares, 5, 'Payload must record totalShares 5');
+
+  // Case 1: Reconstruct using any 3 shares (e.g. shares 0, 2, 4)
+  const threeShares = [
+    quorumResult.shares[0].shareKey,
+    quorumResult.shares[2].shareKey,
+    quorumResult.shares[4].shareKey,
+  ];
+
+  const reconstructedMasterKey = await combineQuorumSharesToCek(threeShares);
+  const decryptedSecret = await decryptSecret(quorumResult.payload, reconstructedMasterKey);
+  assert.equal(decryptedSecret.text, secretPayload.text, 'Reconstructed key from 3 shares must decrypt correctly');
+
+  // Case 2: Reconstruct using another combination (e.g. shares 1, 2, 3)
+  const altThreeShares = [
+    quorumResult.shares[1].shareKey,
+    quorumResult.shares[2].shareKey,
+    quorumResult.shares[3].shareKey,
+  ];
+  const altMasterKey = await combineQuorumSharesToCek(altThreeShares);
+  assert.equal(altMasterKey, reconstructedMasterKey, 'Different share combinations must reconstruct identical master key');
+
+  // Case 3: Reconstruct with fewer than threshold (2 shares)
+  // Shamir polynomial evaluation on fewer shares than threshold yields incorrect key
+  const twoShares = [
+    quorumResult.shares[0].shareKey,
+    quorumResult.shares[1].shareKey,
+  ];
+  const badKey = await combineQuorumSharesToCek(twoShares);
+  assert.notEqual(badKey, reconstructedMasterKey, 'Fewer shares than threshold cannot reconstruct true master key');
+  await assert.rejects(
+    async () => {
+      await decryptSecret(quorumResult.payload, badKey);
+    },
+    /Decryption failed/i,
+    'Decryption with insufficient quorum shares must fail'
+  );
+});
+
+test('Leak-Traceable Zero-Width Envelope Watermarking', async () => {
+  const {
+    embedWatermark,
+    extractWatermark,
+    attributeWatermark,
+  } = await import('../src/crypto/webcrypto.ts');
+
+  const baseText = 'CONFIDENTIAL INFRASTRUCTURE SPEC: Deploy Kubernetes cluster in us-east-1.';
+  const recipientSlot = 'slot_alice_prod';
+  const totalRecipients = ['slot_alice_prod', 'slot_bob_staging', 'slot_charlie_audit'];
+
+  // 1. Embed watermark
+  const watermarkedText = await embedWatermark(baseText, recipientSlot);
+  assert.ok(watermarkedText.length > baseText.length, 'Watermarked text must contain zero-width characters');
+
+  // 2. Extract watermark bits
+  const extractedBits = await extractWatermark(watermarkedText);
+  assert.ok(extractedBits, 'Must successfully extract watermark bits');
+  assert.equal(extractedBits.length, 32, 'Extracted watermark must be 32 bits');
+
+  // 3. Attribute watermark to Alice
+  const attribution = await attributeWatermark(watermarkedText, totalRecipients);
+  assert.ok(attribution, 'Attribution result must be returned');
+  assert.equal(attribution.slotId, recipientSlot, 'Must attribute leak to Alice');
+  assert.equal(attribution.confidence, 1.0, 'Confidence must be 100%');
+  assert.equal(attribution.matchBits, 32, 'All 32 bits must match Alice');
+
+  // 4. Text without watermark returns null
+  const noWatermarkBits = await extractWatermark('Plain unwatermarked text string');
+  assert.equal(noWatermarkBits, null, 'Unwatermarked text must return null bits');
+});
+
+test('Differential Privacy Laplace Mechanism', async () => {
+  const {
+    laplaceNoise,
+    dpCount,
+  } = await import('../src/crypto/webcrypto.ts');
+
+  // Test noise generation with epsilon
+  const sampleNoise = laplaceNoise(1.0, 1.0);
+  assert.equal(typeof sampleNoise, 'number', 'Noise must be a numeric value');
+
+  // Test dpCount with reasonable bounds
+  const trueCount = 10;
+  const noisyCount = dpCount(trueCount, 1.0);
+  assert.ok(noisyCount >= 0, 'Noisy count must not be negative');
+  assert.equal(typeof noisyCount, 'number', 'Noisy count must be integer');
+});
+
+
 

@@ -4,6 +4,7 @@ import { SecretEditor } from './components/SecretEditor';
 import { SecretViewer } from './components/SecretViewer';
 import { SecretCreatedModal } from './components/SecretCreatedModal';
 import { CreatorAdminModal } from './components/CreatorAdminModal';
+import { BuildIntegrityModal } from './components/BuildIntegrityModal';
 import { RequestSecretDrop } from './components/RequestSecretDrop';
 import { IncidentWarRoom } from './components/IncidentWarRoom';
 import { StegoTool } from './components/StegoTool';
@@ -48,6 +49,9 @@ export function App() {
 
   // Creator Admin Dashboard State
   const [adminModalData, setAdminModalData] = useState<{ pasteId: string; adminToken: string } | null>(null);
+
+  // Verifiable Build Integrity Modal State
+  const [showVerifyModal, setShowVerifyModal] = useState<boolean>(false);
 
   // URL Hash-based routing state
   const [inboundDropParams, setInboundDropParams] = useState<{ dropId: string; pubKey: string } | null>(null);
@@ -153,6 +157,7 @@ export function App() {
           setActiveTab(tab);
         }}
         onNewSecret={handleNewSecret}
+        onOpenVerifyModal={() => setShowVerifyModal(true)}
       />
 
       {/* Main Content Area */}
@@ -221,6 +226,12 @@ export function App() {
         />
       )}
 
+      {/* Verifiable Build Integrity Modal */}
+      {showVerifyModal && (
+        <BuildIntegrityModal
+          onClose={() => setShowVerifyModal(false)}
+        />
+      )}
 
       {/* Footer */}
       <footer className="border-t border-emerald-500/10 bg-obsidian-950/90 backdrop-blur-md py-6 text-xs text-slate-500 font-mono">
@@ -235,9 +246,10 @@ export function App() {
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <span className="crypto-badge">🔒 AES-256-GCM</span>
-                <span className="crypto-badge">🔑 PBKDF2-600k</span>
-                <span className="crypto-badge">🛡️ RSA-OAEP 2048</span>
-                <span className="crypto-badge">📡 WebSocket E2EE</span>
+                <span className="crypto-badge">🛡️ OWASP Argon2id</span>
+                <span className="crypto-badge">🧩 Shamir M-of-N</span>
+                <span className="crypto-badge">🔍 Traceable Watermark</span>
+                <span className="crypto-badge">🔑 RSA-OAEP / ECDH</span>
                 <span className="crypto-badge">⏱️ Time-Lock UTC</span>
               </div>
             </div>
@@ -245,9 +257,16 @@ export function App() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-white/5">
               <span className="text-slate-600">Zero-Knowledge Sovereign Secret Exchange Platform</span>
               <div className="flex items-center gap-4 text-slate-500">
-                <a href="https://github.com/abhi8667/clonefest2.0-nachocheese" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
+                <a href="https://github.com/daivikmank-bit/Crypton" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
                   <Github className="w-3.5 h-3.5" /> GitHub
                 </a>
+                <span className="text-white/10">|</span>
+                <span
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                  onClick={() => setShowVerifyModal(true)}
+                >
+                  Verify Build
+                </span>
                 <span className="text-white/10">|</span>
                 <span
                   className="hover:text-emerald-400 transition-colors cursor-pointer"

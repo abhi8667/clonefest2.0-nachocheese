@@ -15,9 +15,10 @@ interface NavbarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   onNewSecret: () => void;
+  onOpenVerifyModal?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewSecret }) => {
+export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewSecret, onOpenVerifyModal }) => {
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-white/10">
       {/* Terminal title bar — the whole site lives inside one continuous window frame */}
@@ -140,10 +141,21 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewSe
           </nav>
 
           {/* Quick Actions & Security Status */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            {onOpenVerifyModal && (
+              <button
+                onClick={onOpenVerifyModal}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full whitespace-nowrap bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30 text-emerald-400 text-xs font-mono transition-colors"
+                title="Verify Build Integrity & SRI Signatures"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden md:inline">ZK Verified</span>
+              </button>
+            )}
+
             <div className="hidden 2xl:flex items-center gap-2 px-2.5 py-1 rounded-full whitespace-nowrap bg-emerald-950/40 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>AES-GCM-256</span>
+              <span>OWASP Argon2id</span>
             </div>
 
             <button

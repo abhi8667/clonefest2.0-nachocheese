@@ -1,4 +1,5 @@
 export type SecretFormatter = 'plaintext' | 'code' | 'markdown' | 'env';
+export type KdfType = 'argon2id' | 'pbkdf2';
 
 export interface FileAttachment {
   name: string;
@@ -14,6 +15,7 @@ export interface DecryptedSecret {
   isDecoy?: boolean;
   attachment?: FileAttachment;
   commentsAllowed?: boolean;
+  watermarkFingerprint?: string;
 }
 
 export interface EncryptedCommentPayload {
@@ -37,10 +39,12 @@ export interface RecipientEnvelopeSlot {
   label: string;
   wrappedKey: string; // Base64URL encrypted CEK
   iv: string;         // Base64URL IV for envelope unwrap
-  salt?: string;      // Base64URL salt for PBKDF2 (if slot has custom password)
+  salt?: string;      // Base64URL salt for PBKDF2/Argon2id (if slot has custom password)
+  kdf?: KdfType;
   burned: boolean;
   readAt?: number | null;
   burnOnRead: boolean;
+  watermarked?: boolean;
 }
 
 export interface RecipientLinkInfo {
@@ -50,11 +54,13 @@ export interface RecipientLinkInfo {
   url: string;
   burnOnRead: boolean;
   hasPassword?: boolean;
+  watermarked?: boolean;
 }
 
 export interface MultiRecipientCreatedResult {
   pasteId: string;
   isMultiRecipient: true;
+  isQuorum?: false;
   adminToken: string;
   adminUrl: string;
   deleteToken: string;
@@ -64,9 +70,30 @@ export interface MultiRecipientCreatedResult {
   recipientLinks: RecipientLinkInfo[];
 }
 
+export interface QuorumShareInfo {
+  shareIndex: number;
+  shareKey: string;
+  label: string;
+  url: string;
+}
+
+export interface QuorumCreatedResult {
+  pasteId: string;
+  isQuorum: true;
+  isMultiRecipient?: false;
+  threshold: number;
+  totalShares: number;
+  deleteToken: string;
+  expireAt: number;
+  timeLockEnabled?: boolean;
+  unlockAt?: string | null;
+  quorumShares: QuorumShareInfo[];
+}
+
 export interface StandardCreatedResult {
   pasteId: string;
   isMultiRecipient?: false;
+  isQuorum?: false;
   masterKey: string;
   deleteToken: string;
   expireAt: number;
@@ -75,23 +102,31 @@ export interface StandardCreatedResult {
   unlockAt?: string | null;
 }
 
-export type CreatedSecretResult = StandardCreatedResult | MultiRecipientCreatedResult;
+export type CreatedSecretResult = StandardCreatedResult | MultiRecipientCreatedResult | QuorumCreatedResult;
 
 export interface PasteResponse {
   id: string;
   isMultiRecipient?: boolean;
+  isQuorum?: boolean;
+  quorum?: {
+    threshold: number;
+    totalShares: number;
+  };
   payload: {
     v: number;
     ct: string;
     iv: string;
     salt?: string;
     iterations?: number;
+    kdf?: KdfType;
+    memorySize?: number;
     adata?: string;
     duress?: {
       enabled: boolean;
       decoyCt: string;
       decoyIv: string;
       decoySalt: string;
+      decoyKdf?: KdfType;
     };
   };
   envelopes?: RecipientEnvelopeSlot[];
@@ -123,4 +158,5 @@ export interface InboundDrop {
 }
 
 export type ActiveTab = 'create' | 'request-drop' | 'incident-room' | 'stego' | 'vault' | 'api-docs';
+
 
