@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  crypton:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypton-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - DB_PATH=/app/data/cipherdrop.db
+    volumes:
+      - crypton-data:/app/data
+
+volumes:
+  crypton-data:
