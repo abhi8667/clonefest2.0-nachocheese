@@ -13,11 +13,17 @@
     "test": "tsx --test tests/crypto.test.js && tsx --test tests/e2e_integration.test.js && tsx --test tests/time_lock.test.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0",
+    "@base-ui/react": "^1.7.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "better-sqlite3": "^13.0.0",
+    "class-variance-authority": "^0.7.1",
     "concurrently": "^9.1.2",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "ogl": "^1.0.11",
+    "shadcn": "^4.19.0",
+    "tw-animate-css": "^1.4.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

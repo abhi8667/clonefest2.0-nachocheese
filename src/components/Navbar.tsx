@@ -1,204 +1,537 @@
-import React from 'react';
-import { 
-  ShieldCheck, 
-  PlusCircle, 
-  Inbox, 
-  Flame, 
-  Image as ImageIcon, 
-  Lock, 
-  Code2,
-  Terminal
-} from 'lucide-react';
-import { ActiveTab } from '../types';
+import React from "react";
+import {
+  ShieldCheck,
+  PlusCircle,
+  Inbox,
+  Flame,
+  Image as ImageIcon,
+  Lock,
+  Terminal,
+} from "lucide-react";
+
+import { ActiveTab } from "../types";
 
 interface NavbarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   onNewSecret: () => void;
+  uiMode: "guided" | "operator";
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewSecret }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  activeTab,
+  setActiveTab,
+  onNewSecret,
+  uiMode,
+}) => {
+  const navigate = (tab: ActiveTab) => {
+    setActiveTab(tab);
+  };
+
+  const isOperator = uiMode === "operator";
+
   return (
-    <header className="sticky top-0 z-40 pt-4 pb-2 w-full glass-panel border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          
-          {/* Logo & Brand */}
-          <div 
-            className="flex items-center gap-3 cursor-pointer group"
+    <header
+      className="
+        sticky
+        top-0
+        z-40
+        w-full
+        py-1
+        border-b
+        border-white/[0.08]
+        bg-[#05080b]/80
+        backdrop-blur-xl
+      "
+    >
+      {/* =========================================================
+          TOP SYSTEM LINE
+      ========================================================= */}
+
+      <div
+        className={`
+          absolute
+          top-0
+          left-0
+          right-0
+          h-px
+          ${
+            isOperator
+              ? "bg-gradient-to-r from-transparent via-[#DE443B]/60 to-transparent"
+              : "bg-gradient-to-r from-transparent via-[#00A8E8]/60 to-transparent"
+          }
+        `}
+      />
+
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        {/* =======================================================
+            MAIN NAVBAR
+        ======================================================== */}
+
+        <div
+          className="
+            relative
+            flex
+            h-[64px]
+            items-center
+            justify-between
+            gap-4
+          "
+        >
+          {/* =====================================================
+              BRAND
+          ====================================================== */}
+
+          <button
             onClick={() => {
-              setActiveTab('create');
+              navigate("create");
               onNewSecret();
             }}
+            className="
+            flex
+            items-center
+            gap-3
+            font-mono
+            text-[9px]
+            md:text-[10px]
+            tracking-[0.25em]
+            text-slate-400
+            transition-colors
+            hover:text-slate-200
+          "
           >
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-6 h-6 text-obsidian-950 stroke-[2.5]" />
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
-                  Cipher<span className="text-emerald-400">Drop</span>
-                </span>
-                <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">
-                  E2EE v2.0
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 font-mono hidden sm:block">Zero-Knowledge Sovereign Exchange</p>
-            </div>
-          </div>
+            <span
+              className="
+              h-1.5
+              w-1.5
+              rounded-full
+              bg-cyan-400
+              shadow-[0_0_12px_rgba(34,211,238,0.9)]
+              animate-pulse"
+            />
+            crypton // SECURE NODE
+          </button>
 
-          {/* Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-1.5 bg-obsidian-900/80 p-1 rounded-xl border border-white/5">
-            <button
-              onClick={() => setActiveTab('create')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                activeTab === 'create'
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              New Secret
-            </button>
+          {/* =====================================================
+              DESKTOP NAVIGATION
+          ====================================================== */}
 
-            <button
-              onClick={() => setActiveTab('request-drop')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                activeTab === 'request-drop'
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <Inbox className="w-3.5 h-3.5" />
-              Request Drop
-            </button>
+          <nav
+            className="
+              hidden
+              md:flex
+              h-full
+              items-center
+              gap-0.5
+            "
+          >
+            {/* Guided */}
 
-            <button
-              onClick={() => setActiveTab('incident-room')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                activeTab === 'incident-room'
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5 text-amber-400" />
-              Incident Room
-            </button>
+            {!isOperator && (
+              <>
+                <NavButton
+                  active={activeTab === "create"}
+                  onClick={() => navigate("create")}
+                  icon={<PlusCircle />}
+                  label="Create"
+                />
 
-            <button
-              onClick={() => setActiveTab('stego')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                activeTab === 'stego'
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              Stego Disguise
-            </button>
+                <NavButton
+                  active={activeTab === "request-drop"}
+                  onClick={() => navigate("request-drop")}
+                  icon={<Inbox />}
+                  label="Receive"
+                />
+              </>
+            )}
 
-            <button
-              onClick={() => setActiveTab('vault')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                activeTab === 'vault'
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <Lock className="w-3.5 h-3.5" />
-              Offline Vault
-            </button>
+            {/* Operator */}
 
-            <button
-              onClick={() => setActiveTab('api-docs')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                activeTab === 'api-docs'
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              API & CLI
-            </button>
+            {isOperator && (
+              <>
+                <NavButton
+                  active={activeTab === "create"}
+                  onClick={() => navigate("create")}
+                  icon={<PlusCircle />}
+                  label="Create"
+                />
+
+                <NavButton
+                  active={activeTab === "request-drop"}
+                  onClick={() => navigate("request-drop")}
+                  icon={<Inbox />}
+                  label="Drops"
+                />
+
+                <NavButton
+                  active={activeTab === "incident-room"}
+                  onClick={() => navigate("incident-room")}
+                  icon={<Flame />}
+                  label="War Room"
+                  danger
+                />
+
+                <NavButton
+                  active={activeTab === "stego"}
+                  onClick={() => navigate("stego")}
+                  icon={<ImageIcon />}
+                  label="Stego"
+                />
+
+                <NavButton
+                  active={activeTab === "vault"}
+                  onClick={() => navigate("vault")}
+                  icon={<Lock />}
+                  label="Vault"
+                />
+
+                <NavButton
+                  active={activeTab === "api-docs"}
+                  onClick={() => navigate("api-docs")}
+                  icon={<Terminal />}
+                  label="API / CLI"
+                />
+              </>
+            )}
           </nav>
 
-          {/* Quick Actions & Security Status */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>AES-GCM-256</span>
+          {/* =====================================================
+              RIGHT SIDE
+          ====================================================== */}
+
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+              shrink-0
+            "
+          >
+            {/* Mode indicator */}
+
+            <div
+              className={`
+                hidden
+                lg:flex
+                items-center
+                gap-2
+                border
+                px-2.5
+                py-1.5
+                font-mono
+                text-[7px]
+                tracking-[0.15em]
+                ${
+                  isOperator
+                    ? "border-[#DE443B]/20 text-[#FF8178] bg-[#DE443B]/[0.035]"
+                    : "border-[#00A8E8]/20 text-[#4DE4FF] bg-[#00A8E8]/[0.035]"
+                }
+              `}
+            >
+              <span
+                className={`
+                  h-1.5
+                  w-1.5
+                  rounded-full
+                  animate-pulse
+                  ${isOperator ? "bg-[#FF6B63]" : "bg-[#4DE4FF]"}
+                `}
+              />
+
+              {isOperator ? "OPERATOR // ONLINE" : "GUIDED // SECURE"}
             </div>
+
+            {/* Separator */}
+
+            <div
+              className="
+                hidden
+                lg:block
+                h-5
+                w-px
+                bg-white/[0.08]
+              "
+            />
+
+            {/* New secret */}
 
             <button
               onClick={() => {
-                setActiveTab('create');
+                navigate("create");
                 onNewSecret();
               }}
-              className="btn-cyber-primary flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold"
+              className="
+                group
+                relative
+                flex
+                items-center
+                gap-2
+                border
+                border-[#00A8E8]/30
+                bg-[#00A8E8]/[0.07]
+                px-3
+                py-2
+                font-mono
+                text-[9px]
+                tracking-[0.08em]
+                text-[#D7F3FF]
+                transition-all
+                duration-200
+                hover:border-[#4DE4FF]/60
+                hover:bg-[#00A8E8]/[0.12]
+              "
             >
-              <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">New Secret</span>
+              <PlusCircle
+                className="
+                  h-3.5
+                  w-3.5
+                  text-[#4DE4FF]
+                  transition-transform
+                  duration-200
+                  group-hover:rotate-90
+                "
+                strokeWidth={1.8}
+              />
+
+              <span className="hidden sm:inline">NEW SECRET</span>
+
+              <span className="sm:hidden">NEW</span>
             </button>
           </div>
-
         </div>
 
-        {/* Mobile Navigation Row */}
-        <div className="flex md:hidden overflow-x-auto py-2 gap-2 border-t border-white/5 scrollbar-none">
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`px-3 py-1 text-xs whitespace-nowrap rounded-lg ${
-              activeTab === 'create' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400'
-            }`}
-          >
-            New Secret
-          </button>
-          <button
-            onClick={() => setActiveTab('request-drop')}
-            className={`px-3 py-1 text-xs whitespace-nowrap rounded-lg ${
-              activeTab === 'request-drop' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400'
-            }`}
-          >
-            Request Drop
-          </button>
-          <button
-            onClick={() => setActiveTab('incident-room')}
-            className={`px-3 py-1 text-xs whitespace-nowrap rounded-lg ${
-              activeTab === 'incident-room' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400'
-            }`}
-          >
-            Incident Room
-          </button>
-          <button
-            onClick={() => setActiveTab('stego')}
-            className={`px-3 py-1 text-xs whitespace-nowrap rounded-lg ${
-              activeTab === 'stego' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400'
-            }`}
-          >
-            Stego
-          </button>
-          <button
-            onClick={() => setActiveTab('vault')}
-            className={`px-3 py-1 text-xs whitespace-nowrap rounded-lg ${
-              activeTab === 'vault' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400'
-            }`}
-          >
-            Vault
-          </button>
-          <button
-            onClick={() => setActiveTab('api-docs')}
-            className={`px-3 py-1 text-xs whitespace-nowrap rounded-lg ${
-              activeTab === 'api-docs' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400'
-            }`}
-          >
-            API
-          </button>
+        {/* =======================================================
+            MOBILE NAVIGATION
+        ======================================================== */}
+
+        <div
+          className="
+            md:hidden
+            flex
+            items-center
+            gap-1
+            overflow-x-auto
+            border-t
+            border-white/[0.05]
+            py-2
+            scrollbar-none
+          "
+        >
+          <MobileNavButton
+            active={activeTab === "create"}
+            onClick={() => navigate("create")}
+            label="CREATE"
+          />
+
+          <MobileNavButton
+            active={activeTab === "request-drop"}
+            onClick={() => navigate("request-drop")}
+            label={isOperator ? "DROPS" : "RECEIVE"}
+          />
+
+          {isOperator && (
+            <>
+              <MobileNavButton
+                active={activeTab === "incident-room"}
+                onClick={() => navigate("incident-room")}
+                label="WAR ROOM"
+                danger
+              />
+
+              <MobileNavButton
+                active={activeTab === "stego"}
+                onClick={() => navigate("stego")}
+                label="STEGO"
+              />
+
+              <MobileNavButton
+                active={activeTab === "vault"}
+                onClick={() => navigate("vault")}
+                label="VAULT"
+              />
+
+              <MobileNavButton
+                active={activeTab === "api-docs"}
+                onClick={() => navigate("api-docs")}
+                label="API / CLI"
+              />
+            </>
+          )}
         </div>
       </div>
     </header>
   );
 };
+
+/* =============================================================
+   DESKTOP NAV BUTTON
+============================================================= */
+
+interface NavButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  danger?: boolean;
+}
+
+function NavButton({ active, onClick, icon, label, danger }: NavButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        group
+        relative
+        flex
+        h-[64px]
+        items-center
+        gap-2
+        px-3
+        lg:px-3.5
+        font-mono
+        text-[9px]
+        tracking-[0.08em]
+        transition-all
+        duration-200
+
+        ${
+          active
+            ? danger
+              ? `
+                text-[#FF8178]
+                bg-[#DE443B]/[0.045]
+              `
+              : `
+                text-[#4DE4FF]
+                bg-[#00A8E8]/[0.045]
+              `
+            : `
+              text-slate-500
+              hover:text-slate-200
+              hover:bg-white/[0.025]
+            `
+        }
+      `}
+    >
+      {/* Active top marker */}
+
+      {active && (
+        <span
+          className={`
+            absolute
+            left-2
+            right-2
+            top-0
+            h-px
+            ${danger ? "bg-[#DE443B]" : "bg-[#00A8E8]"}
+          `}
+        />
+      )}
+
+      {/* Active bottom marker */}
+
+      {active && (
+        <span
+          className={`
+            absolute
+            bottom-0
+            left-1/2
+            h-[2px]
+            w-5
+            -translate-x-1/2
+            ${danger ? "bg-[#DE443B]" : "bg-[#00A8E8]"}
+          `}
+        />
+      )}
+
+      {/* Icon */}
+
+      {React.cloneElement(icon as React.ReactElement, {
+        className: `
+            h-3.5
+            w-3.5
+            transition-transform
+            duration-200
+            group-hover:scale-105
+          `,
+        strokeWidth: 1.7,
+      })}
+
+      {/* Label */}
+
+      <span>{label}</span>
+    </button>
+  );
+}
+
+/* =============================================================
+   MOBILE NAV BUTTON
+============================================================= */
+
+interface MobileNavButtonProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  danger?: boolean;
+}
+
+function MobileNavButton({
+  active,
+  onClick,
+  label,
+  danger,
+}: MobileNavButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        relative
+        shrink-0
+        border
+        px-3
+        py-1.5
+        font-mono
+        text-[8px]
+        tracking-[0.12em]
+        transition-all
+        duration-200
+
+        ${
+          active
+            ? danger
+              ? `
+                border-[#DE443B]/30
+                bg-[#DE443B]/[0.07]
+                text-[#FF8178]
+              `
+              : `
+                border-[#00A8E8]/30
+                bg-[#00A8E8]/[0.07]
+                text-[#4DE4FF]
+              `
+            : `
+              border-white/[0.06]
+              bg-white/[0.015]
+              text-slate-600
+              hover:text-slate-300
+            `
+        }
+      `}
+    >
+      {active && (
+        <span
+          className={`
+            absolute
+            left-0
+            top-0
+            h-full
+            w-px
+            ${danger ? "bg-[#DE443B]" : "bg-[#00A8E8]"}
+          `}
+        />
+      )}
+
+      {label}
+    </button>
+  );
+}

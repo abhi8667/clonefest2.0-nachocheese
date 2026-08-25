@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ CipherDrop
+# 🛡️ Crypton
 
 > **Next-Generation Zero-Knowledge Sovereign Secret Exchange Platform**
 
