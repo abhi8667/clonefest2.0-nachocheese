@@ -60,8 +60,16 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
   useEffect(() => {
     if (!inRoom || !roomId || !roomKey) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/incident-room?room=${roomId}`;
+    // Vercel can rewrite /api/* to the Render backend but cannot proxy a
+    // WebSocket upgrade, so when the SPA is served from Vercel the relay has to
+    // be addressed directly. VITE_WS_HOST carries the Render host in that build;
+    // everywhere else (local dev, the single-process Render deploy) the relay is
+    // same-origin and the fallback applies.
+    const wsHost = import.meta.env.VITE_WS_HOST || window.location.host;
+    const protocol = wsHost.startsWith('localhost') || wsHost.startsWith('127.0.0.1')
+      ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
+      : 'wss:';
+    const wsUrl = `${protocol}//${wsHost}/ws/incident-room?room=${roomId}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
