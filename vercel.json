@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build && node scripts/generate-manifest.js",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/verify/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/((?!api/|verify/|assets/|favicon.ico|robots.txt|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
