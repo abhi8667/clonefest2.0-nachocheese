@@ -403,7 +403,7 @@ CipherDrop implements strict supply-chain security hygiene:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/daivikmank-bit/Crypton.git
+git clone https://github.com/abhi8667/clonefest2.0-nachocheese
 cd Crypton
 
 # 2. Install dependencies
