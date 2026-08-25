@@ -35,8 +35,40 @@ Beyond standard single-key pastes, Crypton introduces enterprise-grade cryptogra
 
 ---
 
+## 📸 Interface Showcase
+
+<div align="center">
+
+### 1. Operating Environment Selection (Balatro WebGL Shader)
+*Choose your preferred workflow mode upon entry — Guided UX or Operator Cyberpunk HUD.*
+
+![Mode Selection Screen](docs/images/01-mode-selection.png)
+
+---
+
+### 2. Guided Mode — Reassuring Onboarding & Streamlined Editor
+*Simplified interface for general users: text/notes sharing, custom expiration, and optional password protection.*
+
+![Guided Landing Screen](docs/images/02-guided-landing.png)
+
+![Guided Secret Editor](docs/images/03-guided-editor.png)
+
+---
+
+### 3. Operator Mode — 3D Cryptographic HUD & Power-User Console
+*Advanced SecOps console featuring interactive 3D Cryptographic Core, live entropy pool monitor, Shamir Quorum, Duress Decoys, Multi-Recipient Envelopes, Argon2id KDF controls, and formatted workspaces.*
+
+![Operator Landing Screen](docs/images/04-operator-landing.png)
+
+![Operator Secret Editor](docs/images/05-operator-editor.png)
+
+</div>
+
+---
+
 ## 📋 Table of Contents
 
+- [Interface Showcase](#-interface-showcase)
 - [Problem Statement \& Motivation](#-problem-statement--motivation)
 - [Threat Model and Security Guarantees](#-threat-model-and-security-guarantees)
   - [1. Untrusted Server Assumption](#1-untrusted-server-assumption)
