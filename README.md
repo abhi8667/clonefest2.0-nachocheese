@@ -4,7 +4,6 @@
 
 > **Next-Generation Zero-Knowledge Sovereign Secret Exchange Platform**
 
-[![Vercel Deployment](https://img.shields.io/badge/Live%20Demo-Vercel-000000.svg?style=for-the-badge&logo=vercel)](https://crypton-nachocheese.vercel.app/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?style=for-the-badge&logo=react)](https://react.dev/)
@@ -18,11 +17,9 @@
 
 <p align="center">
   <b>Decentralized, mathematically provable secret sharing engineered for enterprise SecOps, whistleblowers, and developers operating across untrusted networks.</b>
-  <br />
-  🌐 <b>Live Vercel Deployment:</b> <a href="https://crypton-nachocheese.vercel.app/">https://crypton-nachocheese.vercel.app/</a>
 </p>
 
-🌐 [Live Vercel Demo](https://crypton-nachocheese.vercel.app/) • [Explore Features](#-key-features) • [Threat Model & Security](#-threat-model-and-security-guarantees) • [Cyberpunk UI & 3D Core](#-cyberpunk-ui--interactive-3d-cybernetics) • [System Architecture](#-system-architecture) • [Quick Start](#-quick-start) • [API Reference](#-rest-api--websocket-reference) • [SDK Examples](#-developer-sdks--integration-examples)
+[Explore Features](#-key-features) • [Threat Model & Security](#-threat-model-and-security-guarantees) • [Cyberpunk UI & 3D Core](#-cyberpunk-ui--interactive-3d-cybernetics) • [System Architecture](#-system-architecture) • [Quick Start](#-quick-start) • [API Reference](#-rest-api--websocket-reference) • [SDK Examples](#-developer-sdks--integration-examples)
 
 ---
 
@@ -30,48 +27,16 @@
 
 ## Executive Summary
 
-**Crypton** is a decentralized, zero-knowledge platform engineered for exchanging confidential text, environment variable configurations, infrastructure credentials, private key material, and binary payloads across completely untrusted networks. Built as a ground-up modernization of the legacy PrivateBin paradigm, Crypton replaces 2010s-era PHP/jQuery stacks with a high-throughput systems architecture powered by **React 18, TypeScript, Vite, WebSockets, Node.js, and SQLite with Write-Ahead Logging (WAL)**.
+**CipherDrop** is a decentralized, zero-knowledge platform engineered for exchanging confidential text, environment variable configurations, infrastructure credentials, private key material, and binary payloads across completely untrusted networks. Built as a ground-up modernization of the legacy PrivateBin paradigm, CipherDrop replaces 2010s-era PHP/jQuery stacks with a high-throughput systems architecture powered by **React 18, TypeScript, Vite, WebSockets, Node.js, and SQLite with Write-Ahead Logging (WAL)**.
 
-Crypton operates under a strict **Zero-Knowledge Trust Model**: payload encryption and decryption occur exclusively inside the client's browser using the W3C Web Cryptography API (`window.crypto.subtle`) and memory-hard Argon2id. Master decryption keys reside solely within the URI fragment identifier (`#`), which standard HTTP user agents strictly refuse to transmit over the network wire. Consequently, storage servers, network relays, and hostile intermediaries possess zero visibility into stored ciphertexts.
+CipherDrop operates under a strict **Zero-Knowledge Trust Model**: payload encryption and decryption occur exclusively inside the client's browser using the W3C Web Cryptography API (`window.crypto.subtle`) and memory-hard Argon2id. Master decryption keys reside solely within the URI fragment identifier (`#`), which standard HTTP user agents strictly refuse to transmit over the network wire. Consequently, storage servers, network relays, and hostile intermediaries possess zero visibility into stored ciphertexts.
 
-Beyond standard single-key pastes, Crypton introduces enterprise-grade cryptographic innovations including **Quorum Unlock via Shamir's Secret Sharing (M-of-N)**, **Leak-Traceable Envelope Watermarking**, **Differential-Privacy ($\epsilon$-DP) Telemetry**, **Multi-Recipient Envelope Key Wrapping**, **Coercion Resistance via Duress Decoys**, **Inbound Asymmetric DropBoxes**, **Real-Time Ephemeral Incident War Rooms**, **Steganographic LSB Image Carriers**, **Server-Assisted UTC Time-Lock Releases**, and an **Air-Gapped Offline Sandbox** — all wrapped in dual user experience modes (**Guided UX** and **Operator 3D Cyber HUD**) with interactive synthesized audio feedback.
-
----
-
-## 📸 Interface Showcase
-
-<div align="center">
-
-### 1. Operating Environment Selection (Balatro WebGL Shader)
-*Choose your preferred workflow mode upon entry — Guided UX or Operator Cyberpunk HUD.*
-
-![Mode Selection Screen](docs/images/01-mode-selection.png)
-
----
-
-### 2. Guided Mode — Reassuring Onboarding & Streamlined Editor
-*Simplified interface for general users: text/notes sharing, custom expiration, and optional password protection.*
-
-![Guided Landing Screen](docs/images/02-guided-landing.png)
-
-![Guided Secret Editor](docs/images/03-guided-editor.png)
-
----
-
-### 3. Operator Mode — 3D Cryptographic HUD & Power-User Console
-*Advanced SecOps console featuring interactive 3D Cryptographic Core, live entropy pool monitor, Shamir Quorum, Duress Decoys, Multi-Recipient Envelopes, Argon2id KDF controls, and formatted workspaces.*
-
-![Operator Landing Screen](docs/images/04-operator-landing.png)
-
-![Operator Secret Editor](docs/images/05-operator-editor.png)
-
-</div>
+Beyond standard single-key pastes, CipherDrop introduces enterprise-grade cryptographic innovations including **Quorum Unlock via Shamir's Secret Sharing (M-of-N)**, **Leak-Traceable Envelope Watermarking**, **Differential-Privacy ($\epsilon$-DP) Telemetry**, **Multi-Recipient Envelope Key Wrapping**, **Coercion Resistance via Duress Decoys**, **Inbound Asymmetric DropBoxes**, **Real-Time Ephemeral Incident War Rooms**, **Steganographic LSB Image Carriers**, **Server-Assisted UTC Time-Lock Releases**, and an **Air-Gapped Offline Sandbox** — all wrapped in an ultra-modern **Cyberpunk 3D HUD Interface** with interactive synthesized audio feedback.
 
 ---
 
 ## 📋 Table of Contents
 
-- [Interface Showcase](#-interface-showcase)
 - [Problem Statement \& Motivation](#-problem-statement--motivation)
 - [Threat Model and Security Guarantees](#-threat-model-and-security-guarantees)
   - [1. Untrusted Server Assumption](#1-untrusted-server-assumption)
@@ -111,13 +76,13 @@ Modern engineering teams, SecOps responders, and privacy advocates face critical
 3. **Legacy Pastebin Flaws**: 2010s-era encrypted pastebins lack multi-recipient tracking, lack coercion resistance under physical threat, cannot bypass Deep Packet Inspection (DPI) firewalls, and offer zero real-time incident collaboration capabilities.
 4. **Lack of Plausible Deniability**: Traditional passphrases leave users vulnerable to compelled disclosure (rubber-hose cryptanalysis), where an attacker forcing key disclosure immediately exposes the confidential payload.
 
-**Crypton solves these challenges** by delivering a self-contained, sovereign, mathematical trust boundary that provides zero-knowledge guarantees, coercion resistance, real-time collaboration, and air-gapped fallback options.
+**CipherDrop solves these challenges** by delivering a self-contained, sovereign, mathematical trust boundary that provides zero-knowledge guarantees, coercion resistance, real-time collaboration, and air-gapped fallback options.
 
 ---
 
 ## 🔒 Threat Model and Security Guarantees
 
-Crypton's design assumes adversarial network environments and compromised storage backends. The guarantees below are enforced by the implementation and exercised by the automated test suite; they are not the product of a formal verification process (e.g. TLA+ or a machine-checked proof) — that remains a roadmap item, not a current claim.
+CipherDrop's design assumes adversarial network environments and compromised storage backends. The guarantees below are enforced by the implementation and exercised by the automated test suite; they are not the product of a formal verification process (e.g. TLA+ or a machine-checked proof) — that remains a roadmap item, not a current claim.
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -218,12 +183,6 @@ All `/api/*` routes are protected by a sliding-window rate limiter (`express-rat
 - **Differential-Privacy ($\epsilon$-DP) Telemetry**: Calibrated Laplace noise injection into creator read receipts preventing timing/correlation side-channels.
 - **Verifiable Zero-Knowledge Build Integrity**: In-app cryptographic SRI auditor verifying runtime module hashes against `/verify/manifest.json`.
 
-### 🎨 Dual Interface Modes (Guided vs. Operator UX)
-- **Guided Mode**: A streamlined, non-intimidating interface tailored for general users. Hides complex cryptosystems, KDF selectors, quorum sliders, and technical jargon to present a clean, fast secret editor ("Create Secret Link", "Protect with a password", simple expiration).
-- **Operator Mode**: Power-user & SecOps interface exposing full cryptographic controls — 3D Cyberpunk HUD, WASM Argon2id memory visualizers, Shamir's Secret Sharing (M-of-N), Duress Decoys, Multi-Recipient Envelopes, Steganography, Time-Locks, and Incident War Rooms.
-- **Dynamic Mode-Aware Onboarding**: Landing screens and onboarding explainers dynamically adjust their guidance based on whether Guided or Operator mode is selected, ensuring users are never shown options unavailable in their chosen view.
-- **Balatro WebGL Shader Engine**: Interactive WebGL shader canvas background with smooth visual feedback and theme toggling.
-
 ### 🛸 Cyberpunk UI & Interactive 3D Cybernetics
 - **Interactive 3D Cryptographic Tesseract**: Pure CSS/SVG 3D wireframe polyhedron with counter-rotating orbital gyroscopes, mouse tilt physics, and click-to-unlock quantum pulse animations.
 - **Cryptographic Matrix Particle Canvas**: High-performance canvas particle constellation with interactive mouse deflection and floating cryptographic glyphs (`AES-GCM`, `ARGON2ID`, `GF(2^8)`, `SHAMIR`, `PQC_KEM`).
@@ -254,11 +213,10 @@ All `/api/*` routes are protected by a sliding-window rate limiter (`express-rat
 
 ## 📊 Architectural Comparison
 
-| Feature / Dimension | Legacy PrivateBin | HashiCorp Vault | Bitwarden Send | Crypton |
+| Feature / Dimension | Legacy PrivateBin | HashiCorp Vault | Bitwarden Send | CipherDrop |
 | :--- | :--- | :--- | :--- | :--- |
 | **Primary Focus** | Pastebin Text Sharing | Infrastructure Secrets | Password Sharing | **Sovereign Zero-Knowledge Secret Exchange** |
-| **Frontend Architecture** | jQuery / PHP | React / Enterprise UI | Angular / TypeScript | **React 18 / TypeScript / Vite / Dual UX (Guided & Operator)** |
-| **Dual Interface Modes** | ❌ No | ❌ No | ❌ No | **✅ Yes (Guided Mode + Operator 3D HUD)** |
+| **Frontend Architecture** | jQuery / PHP | React / Enterprise UI | Angular / TypeScript | **React 18 / TypeScript / Vite / Cyberpunk UI** |
 | **Key Derivation Standard** | 100,000 PBKDF2 | N/A (Server-Managed) | 100,000 - 600,000 | **Argon2id (64MB Memory-Hard) + PBKDF2 (600k)** |
 | **Quorum Threshold Unlock** | ❌ No | Shamir Unseal (Server) | ❌ No | **✅ Yes (Client-Side GF(2^8) Shamir M-of-N)** |
 | **Leak-Traceable Watermarking**| ❌ No | ❌ No | ❌ No | **✅ Yes (Zero-Width Bit Forensic Detective)** |

@@ -176,7 +176,7 @@ export async function deriveAesKey(
   const masterKeyBytes = base58ToBytes(masterKeyBase58);
   const encoder = new TextEncoder();
   const hasPassword = Boolean(password && password.trim().length > 0);
-  
+
   let rawMaterial: Uint8Array;
   if (hasPassword) {
     const passwordBytes = encoder.encode(password!.trim());
@@ -265,7 +265,7 @@ export async function encryptSecret(
   const kdfChoice = options?.kdf || 'argon2id';
   const memorySize = options?.memorySize || 65536;
   const hasPassword = Boolean(options?.password && options.password.trim().length > 0);
-  
+
   // Primary salt & IV
   const salt = new Uint8Array(16);
   crypto.getRandomValues(salt);
@@ -273,17 +273,17 @@ export async function encryptSecret(
   crypto.getRandomValues(iv);
 
   const primaryKey = await deriveAesKey(
-    masterKey, 
-    options?.password, 
-    salt, 
-    iterations, 
-    kdfChoice, 
+    masterKey,
+    options?.password,
+    salt,
+    iterations,
+    kdfChoice,
     memorySize
   );
-  
+
   const serialized = JSON.stringify(data);
   const plaintextBuffer = encoder.encode(serialized);
-  
+
   const adataString = options?.authenticatedMeta || 'cipherdrop-v2';
   const adataBytes = encoder.encode(adataString);
 
@@ -317,11 +317,11 @@ export async function encryptSecret(
     crypto.getRandomValues(decoyIv);
 
     const decoyKey = await deriveAesKey(
-      masterKey, 
-      options.duressPassword, 
-      decoySalt, 
-      iterations, 
-      kdfChoice, 
+      masterKey,
+      options.duressPassword,
+      decoySalt,
+      iterations,
+      kdfChoice,
       memorySize
     );
     const decoyBuffer = encoder.encode(JSON.stringify({ ...options.decoyData, isDecoy: true }));
@@ -700,7 +700,7 @@ export async function embedWatermark(text: string, slotId: string): Promise<stri
   const ZWSP = '\u200B'; // 0
   const ZWNJ = '\u200C'; // 1
   const ZWJ = '\u200D';  // Framing delimiter
-  
+
   let watermarkStream = ZWJ;
   for (const bit of bits) {
     watermarkStream += bit === '1' ? ZWNJ : ZWSP;
@@ -708,7 +708,7 @@ export async function embedWatermark(text: string, slotId: string): Promise<stri
   watermarkStream += ZWJ;
 
   if (!text || text.length === 0) return watermarkStream;
-  
+
   const newlineIdx = text.indexOf('\n');
   if (newlineIdx !== -1) {
     return text.slice(0, newlineIdx) + watermarkStream + text.slice(newlineIdx);
@@ -760,7 +760,7 @@ export async function attributeWatermark(
   const extractedBits = extractWatermark(leakedText);
   if (!extractedBits) return null;
 
-  const normalized = candidates.map(c => 
+  const normalized = candidates.map(c =>
     typeof c === 'string' ? { slotId: c, label: c } : { slotId: c.slotId, label: c.label || c.slotId }
   );
 
@@ -865,7 +865,7 @@ export async function encryptMultiRecipientSecret(
 ): Promise<MultiRecipientGenerated> {
   const encoder = new TextEncoder();
   const kdfChoice = options?.kdf || 'argon2id';
-  
+
   // 1. Generate Master Content Encryption Key (CEK)
   const masterCEK = generateMasterKey();
 
