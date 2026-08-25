@@ -4,6 +4,7 @@
 
 > **Next-Generation Zero-Knowledge Sovereign Secret Exchange Platform**
 
+[![Vercel Deployment](https://img.shields.io/badge/Live%20Demo-Vercel-000000.svg?style=for-the-badge&logo=vercel)](https://crypton-nachocheese.vercel.app/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?style=for-the-badge&logo=react)](https://react.dev/)
@@ -17,9 +18,11 @@
 
 <p align="center">
   <b>Decentralized, mathematically provable secret sharing engineered for enterprise SecOps, whistleblowers, and developers operating across untrusted networks.</b>
+  <br />
+  🌐 <b>Live Vercel Deployment:</b> <a href="https://crypton-nachocheese.vercel.app/">https://crypton-nachocheese.vercel.app/</a>
 </p>
 
-[Explore Features](#-key-features) • [Threat Model & Security](#-threat-model-and-security-guarantees) • [Cyberpunk UI & 3D Core](#-cyberpunk-ui--interactive-3d-cybernetics) • [System Architecture](#-system-architecture) • [Quick Start](#-quick-start) • [API Reference](#-rest-api--websocket-reference) • [SDK Examples](#-developer-sdks--integration-examples)
+🌐 [Live Vercel Demo](https://crypton-nachocheese.vercel.app/) • [Explore Features](#-key-features) • [Threat Model & Security](#-threat-model-and-security-guarantees) • [Cyberpunk UI & 3D Core](#-cyberpunk-ui--interactive-3d-cybernetics) • [System Architecture](#-system-architecture) • [Quick Start](#-quick-start) • [API Reference](#-rest-api--websocket-reference) • [SDK Examples](#-developer-sdks--integration-examples)
 
 ---
 
