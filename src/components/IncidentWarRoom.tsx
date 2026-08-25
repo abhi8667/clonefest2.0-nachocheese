@@ -18,6 +18,13 @@ import { generateMasterKey, encryptSecret, decryptSecret } from '../crypto/webcr
 import { FeatureHighlights } from './FeatureHighlights';
 import { TerminalWindow } from './TerminalWindow';
 
+/**
+ * Host of the WebSocket blind relay, used when the page is served from an
+ * origin that cannot proxy a WS upgrade (Vercel). Overridable at build time
+ * via VITE_WS_HOST.
+ */
+const RELAY_HOST = 'clonefest2-0-nachocheese-2-0.onrender.com';
+
 interface IncidentWarRoomProps {
   initialRoomId?: string;
   initialRoomKey?: string;
@@ -60,15 +67,18 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
   useEffect(() => {
     if (!inRoom || !roomId || !roomKey) return;
 
-    // Vercel can rewrite /api/* to the Render backend but cannot proxy a
-    // WebSocket upgrade, so when the SPA is served from Vercel the relay has to
-    // be addressed directly. VITE_WS_HOST carries the Render host in that build;
-    // everywhere else (local dev, the single-process Render deploy) the relay is
-    // same-origin and the fallback applies.
-    const wsHost = import.meta.env.VITE_WS_HOST || window.location.host;
-    const protocol = wsHost.startsWith('localhost') || wsHost.startsWith('127.0.0.1')
-      ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
-      : 'wss:';
+    // Vercel rewrites /api/* to the Render backend but cannot proxy a WebSocket
+    // upgrade, so a Vercel-served build must address the relay directly. The
+    // relay is same-origin only for local dev (through the vite proxy) and for
+    // the single-process Render deploy; anywhere else it lives on Render.
+    // VITE_WS_HOST still overrides, so a different backend needs no code change.
+    const { hostname, host, protocol: pageProtocol } = window.location;
+    const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+    const relayIsSameOrigin = isLocal || hostname.endsWith(".onrender.com");
+    const wsHost =
+      import.meta.env.VITE_WS_HOST ||
+      (relayIsSameOrigin ? host : RELAY_HOST);
+    const protocol = isLocal && pageProtocol !== "https:" ? "ws:" : "wss:";
     const wsUrl = `${protocol}//${wsHost}/ws/incident-room?room=${roomId}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
