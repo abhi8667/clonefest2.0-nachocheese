@@ -75,9 +75,17 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
     const { hostname, host, protocol: pageProtocol } = window.location;
     const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
     const relayIsSameOrigin = isLocal || hostname.endsWith(".onrender.com");
-    const wsHost =
+    // Normalise: the configured value is a bare host, but a value pasted with
+    // a protocol or a trailing slash is an easy mistake and yields
+    // wss://host//ws/incident-room, which the relay rejects with a 400 because
+    // it registers the exact path /ws/incident-room.
+    const wsHost = (
       import.meta.env.VITE_WS_HOST ||
-      (relayIsSameOrigin ? host : RELAY_HOST);
+      (relayIsSameOrigin ? host : RELAY_HOST)
+    )
+      .trim()
+      .replace(/^[a-z][a-z0-9+.-]*:\/\//i, "")
+      .replace(/\/+$/, "");
     const protocol = isLocal && pageProtocol !== "https:" ? "ws:" : "wss:";
     const wsUrl = `${protocol}//${wsHost}/ws/incident-room?room=${roomId}`;
     const ws = new WebSocket(wsUrl);
