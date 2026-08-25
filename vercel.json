@@ -5,11 +5,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "https://clonefest2-0-nachocheese-2-0.onrender.com/api/$1"
     },
     {
       "source": "/verify/(.*)",
-      "destination": "/api"
+      "destination": "https://clonefest2-0-nachocheese-2-0.onrender.com/verify/$1"
     },
     {
       "source": "/((?!api/|verify/|assets/|favicon.ico|robots.txt|.*\\..*).*)",
