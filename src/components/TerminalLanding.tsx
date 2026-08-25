@@ -175,7 +175,7 @@ export const TerminalLanding: React.FC<TerminalLandingProps> = ({ onEnter }) => 
               <span className="w-3 h-3 rounded-full bg-emerald-500/70"></span>
             </div>
             <span className="flex-1 min-w-0 text-center text-[11px] font-mono text-slate-500 truncate">
-              anonymous@cipherdrop&nbsp;—&nbsp;zsh
+              anonymous@crypton&nbsp;—&nbsp;zsh
             </span>
             {/* Mirrors the traffic-light width so the path stays optically centered */}
             <div className="w-[60px] flex-shrink-0" aria-hidden="true" />

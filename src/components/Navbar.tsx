@@ -13,12 +13,16 @@ import {
 
 import { ActiveTab } from "../types";
 import { cyberAudio } from "../utils/cyberAudio";
+import { ModeToggle } from "./ModeToggle";
 
 interface NavbarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   onNewSecret: () => void;
   uiMode?: "guided" | "operator";
+  /** Lets the operating environment be switched from anywhere in the app,
+      not just at the initial ModeSelectionScreen gate. */
+  onModeSwitch?: (mode: "guided" | "operator") => void;
   onOpenVerifyModal?: () => void;
 }
 
@@ -27,6 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onNewSecret,
   uiMode = "guided",
+  onModeSwitch,
   onOpenVerifyModal,
 }) => {
   const [isMuted, setIsMuted] = useState(() => cyberAudio.getMuted());
@@ -95,12 +100,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               BRAND
           ====================================================== */}
 
-          <button
-            onClick={() => {
-              cyberAudio.playClick(800, 0.02);
-              navigate("create");
-              onNewSecret();
-            }}
+          {/* Status readout, not a nav control — it reads "crypton // SECURE
+              NODE" like a system status line, so it shouldn't act like a
+              logo-click-to-home link that discards whatever the user is
+              doing elsewhere in the app (viewing a secret, mid-flow on
+              another tab). Use the explicit "New Secret" button for that. */}
+          <div
             className="
             flex
             items-center
@@ -110,8 +115,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             md:text-[10px]
             tracking-[0.25em]
             text-slate-400
-            transition-colors
-            hover:text-slate-200
           "
           >
             <span
@@ -124,7 +127,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               animate-pulse"
             />
             crypton // SECURE NODE
-          </button>
+          </div>
 
           {/* =====================================================
               DESKTOP NAVIGATION
@@ -248,38 +251,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Mode indicator */}
-
-            <div
-              className={`
-                hidden
-                lg:flex
-                items-center
-                gap-2
-                border
-                px-2.5
-                py-1.5
-                font-mono
-                text-[7px]
-                tracking-[0.15em]
-                ${
-                  isOperator
-                    ? "border-[#DE443B]/20 text-[#FF8178] bg-[#DE443B]/[0.035]"
-                    : "border-[#00A8E8]/20 text-[#4DE4FF] bg-[#00A8E8]/[0.035]"
-                }
-              `}
-            >
-              <span
-                className={`
-                  h-1.5
-                  w-1.5
-                  rounded-full
-                  animate-pulse
-                  ${isOperator ? "bg-[#FF6B63]" : "bg-[#4DE4FF]"}
-                `}
-              />
-
-              {isOperator ? "OPERATOR // ONLINE" : "GUIDED // SECURE"}
+            {/* Mode switch — live, always available. Falls back to a
+                read-only status pill if the app hasn't wired a switch
+                handler through (defensive; App.tsx always provides one). */}
+            <div className="hidden lg:block">
+              {onModeSwitch ? (
+                <ModeToggle mode={uiMode} setMode={onModeSwitch} />
+              ) : (
+                <div
+                  className={`flex items-center gap-2 border px-2.5 py-1.5 font-mono text-[7px] tracking-[0.15em] ${
+                    isOperator
+                      ? "border-[#DE443B]/20 text-[#FF8178] bg-[#DE443B]/[0.035]"
+                      : "border-[#00A8E8]/20 text-[#4DE4FF] bg-[#00A8E8]/[0.035]"
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full animate-pulse ${isOperator ? "bg-[#FF6B63]" : "bg-[#4DE4FF]"}`}
+                  />
+                  {isOperator ? "OPERATOR // ONLINE" : "GUIDED // SECURE"}
+                </div>
+              )}
             </div>
 
             {/* Separator */}
@@ -341,6 +332,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Mode switch for small/medium screens — same control as desktop,
+            just relocated since it's hidden above lg there. */}
+        {onModeSwitch && (
+          <div className="lg:hidden flex justify-center border-t border-white/[0.05] py-2">
+            <ModeToggle mode={uiMode} setMode={onModeSwitch} />
+          </div>
+        )}
 
         {/* =======================================================
             MOBILE NAVIGATION

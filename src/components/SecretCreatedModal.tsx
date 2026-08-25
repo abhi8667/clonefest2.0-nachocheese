@@ -96,7 +96,7 @@ export const SecretCreatedModal: React.FC<SecretCreatedModalProps> = ({
 
   const handleCopyAllLinks = () => {
     if (isQuorum && quorumData) {
-      const formatted = `🧩 CipherDrop Quorum Secret (${quorumData.threshold}-of-${quorumData.totalShares} Threshold Required)\nDistribute one share to each trustee. Any ${quorumData.threshold} trustees must combine their links to unlock:\n\n` +
+      const formatted = `🧩 Crypton Quorum Secret (${quorumData.threshold}-of-${quorumData.totalShares} Threshold Required)\nDistribute one share to each trustee. Any ${quorumData.threshold} trustees must combine their links to unlock:\n\n` +
         quorumData.quorumShares
           .map((s: QuorumShareInfo) => `👤 ${s.label} (Share ${s.shareIndex}): ${s.url}`)
           .join('\n\n');
@@ -115,7 +115,7 @@ export const SecretCreatedModal: React.FC<SecretCreatedModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
       <div className="relative w-full max-w-3xl my-8">
-      <TerminalWindow path="anonymous@cipherdrop — secret-created" glow>
+      <TerminalWindow path="anonymous@crypton — secret-created" glow>
       <div className="relative text-slate-100 space-y-6 p-6 sm:p-8">
 
         {/* Close Button */}
@@ -163,7 +163,7 @@ export const SecretCreatedModal: React.FC<SecretCreatedModalProps> = ({
               </span>
             </div>
             <p className="text-slate-300 text-xs leading-relaxed">
-              This secret cannot be opened or decrypted yet. The CipherDrop server will reject requests with <code className="text-amber-300 font-mono">HTTP 423 Locked</code> until the unlock time passes.
+              This secret cannot be opened or decrypted yet. The Crypton server will reject requests with <code className="text-amber-300 font-mono">HTTP 423 Locked</code> until the unlock time passes.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
               <div className="p-2.5 bg-obsidian-950 rounded-xl border border-white/5">

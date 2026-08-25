@@ -7,6 +7,7 @@ import { cyberAudio } from '../utils/cyberAudio';
 interface HeroSectionProps {
   onScrollToEditor: () => void;
   onLoadSample?: (text: string, formatter: string) => void;
+  uiMode?: 'guided' | 'operator';
 }
 
 function AnimatedCounter({ end, duration = 1500, suffix = '' }: { end: number; duration?: number; suffix?: string }) {
@@ -28,6 +29,9 @@ function AnimatedCounter({ end, duration = 1500, suffix = '' }: { end: number; d
   return <span>{count.toLocaleString()}{suffix}</span>;
 }
 
+// Operator samples show off the format range (env/markdown/code); guided
+// samples are deliberately mundane and always plaintext, matching the
+// simplified editor that has no format switcher to put them in.
 const SAMPLE_PAYLOADS = [
   {
     label: 'AWS & Stripe .env',
@@ -49,7 +53,13 @@ const SAMPLE_PAYLOADS = [
   },
 ];
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToEditor, onLoadSample }) => {
+const GUIDED_SAMPLE_PAYLOADS = [
+  { label: 'A password', icon: '🔑', formatter: 'plaintext', text: 'Wifi password: correct-horse-battery-staple' },
+  { label: 'A private note', icon: '📝', formatter: 'plaintext', text: "Hey — here's the thing I mentioned. Delete after reading." },
+];
+
+export const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToEditor, onLoadSample, uiMode = 'guided' }) => {
+  const isGuided = uiMode === 'guided';
   const [dismissed, setDismissed] = useState(() => {
     return localStorage.getItem('cipherdrop-hero-dismissed') === 'true';
   });
@@ -62,7 +72,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToEditor, onLo
     localStorage.setItem('cipherdrop-hero-dismissed', 'true');
   };
 
-  const handleSelectSample = (sample: typeof SAMPLE_PAYLOADS[0]) => {
+  const handleSelectSample = (sample: { text: string; formatter: string }) => {
     cyberAudio.playQuantumBeep(720, 0.04);
     if (onLoadSample) {
       onLoadSample(sample.text, sample.formatter);
@@ -70,9 +80,74 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToEditor, onLo
     onScrollToEditor();
   };
 
+  // Guided mode: a short, warm reassurance and nothing else — no stat grid,
+  // no 3D tesseract, no crypto-protocol diagram. Everything below is
+  // genuinely different content, not the same content restyled smaller.
+  if (isGuided) {
+    return (
+      <div className="mb-8 animate-fade-in">
+        <TerminalWindow path="anonymous@crypton — welcome" glow stagger={1} bodyClassName="relative">
+          <button
+            onClick={handleDismiss}
+            className="absolute top-3 right-3 z-10 px-2 py-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-colors text-xs font-mono"
+          >
+            ✕ Dismiss
+          </button>
+
+          <div className="p-6 sm:p-8 text-center space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Private by default</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight max-w-xl mx-auto">
+              Share something secret. <span className="text-emerald-400">We can't read it, either.</span>
+            </h1>
+
+            <p className="text-slate-400 text-sm leading-relaxed max-w-lg mx-auto">
+              Type it below, set when it should disappear, and get a link to send. It's locked in your
+              browser before it ever reaches us — we just hold the lock, not the key.
+            </p>
+
+            <div className="pt-1">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 block mb-2">
+                Or try an example:
+              </span>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {GUIDED_SAMPLE_PAYLOADS.map((sample) => (
+                  <button
+                    key={sample.label}
+                    onClick={() => handleSelectSample(sample)}
+                    className="px-3 py-1.5 rounded-xl bg-obsidian-900/90 hover:bg-emerald-500/15 border border-white/10 hover:border-emerald-500/40 text-xs font-mono text-slate-300 hover:text-emerald-300 flex items-center gap-1.5 transition-all"
+                  >
+                    <span>{sample.icon}</span>
+                    <span>{sample.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-1">
+              <button
+                onClick={() => {
+                  cyberAudio.playClick(900, 0.02);
+                  onScrollToEditor();
+                }}
+                className="btn-cyber-primary inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold"
+              >
+                <span>Start below</span>
+                <ArrowDown className="w-4 h-4 animate-bounce" />
+              </button>
+            </div>
+          </div>
+        </TerminalWindow>
+      </div>
+    );
+  }
+
   return (
     <div className="mb-8 animate-fade-in">
-      <TerminalWindow path="anonymous@cipherdrop — sovereign-security-matrix" glow stagger={1} bodyClassName="relative">
+      <TerminalWindow path="anonymous@crypton — sovereign-security-matrix" glow stagger={1} bodyClassName="relative">
         {/* Dismiss control */}
         <button
           onClick={handleDismiss}

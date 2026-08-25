@@ -151,7 +151,7 @@ export const ApiCliHub: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       
       {/* Intro */}
-      <TerminalWindow path="anonymous@cipherdrop — api-docs" glow>
+      <TerminalWindow path="anonymous@crypton — api-docs" glow>
       <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -173,7 +173,7 @@ export const ApiCliHub: React.FC = () => {
       </TerminalWindow>
 
       {/* Code Snippets Box */}
-      <TerminalWindow path={`anonymous@cipherdrop — snippet.${activeLang}`} glow className="shadow-2xl">
+      <TerminalWindow path={`anonymous@crypton — snippet.${activeLang}`} glow className="shadow-2xl">
 
         {/* Languages Tabs */}
         <div className="flex items-center justify-between px-6 py-3 bg-obsidian-950 border-b border-white/5">
@@ -209,7 +209,7 @@ export const ApiCliHub: React.FC = () => {
       </TerminalWindow>
 
       {/* REST API Endpoints Table */}
-      <TerminalWindow path="anonymous@cipherdrop — man api" glow className="shadow-xl">
+      <TerminalWindow path="anonymous@crypton — man api" glow className="shadow-xl">
       <div className="p-6 space-y-4">
         <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">
           Core REST API Reference

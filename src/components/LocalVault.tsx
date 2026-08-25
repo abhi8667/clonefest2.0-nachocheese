@@ -72,7 +72,7 @@ export const LocalVault: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       
       {/* Intro Header */}
-      <TerminalWindow path="anonymous@cipherdrop — vault --offline" glow>
+      <TerminalWindow path="anonymous@crypton — vault --offline" glow>
       <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -115,7 +115,7 @@ export const LocalVault: React.FC = () => {
 
       {mode === 'encrypt' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <TerminalWindow path="anonymous@cipherdrop — vault/input" stagger={1}>
+          <TerminalWindow path="anonymous@crypton — vault/input" stagger={1}>
           <div className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
@@ -153,7 +153,7 @@ export const LocalVault: React.FC = () => {
           </div>
           </TerminalWindow>
 
-          <TerminalWindow path="anonymous@cipherdrop — vault/output" stagger={2}>
+          <TerminalWindow path="anonymous@crypton — vault/output" stagger={2}>
           <div className="p-6 space-y-4">
             <h3 className="text-xs font-mono font-bold uppercase text-emerald-400">
               Generated Ciphertext & Key
@@ -210,7 +210,7 @@ export const LocalVault: React.FC = () => {
       ) : (
         /* Decrypt Sandbox */
         <div className="max-w-2xl mx-auto">
-        <TerminalWindow path="anonymous@cipherdrop — vault/decrypt">
+        <TerminalWindow path="anonymous@crypton — vault/decrypt">
         <div className="p-6 sm:p-8 space-y-4">
           <div>
             <label className="block text-xs font-mono text-slate-300 uppercase mb-1">

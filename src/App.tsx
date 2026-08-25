@@ -19,17 +19,21 @@ import { ModeSelectionScreen } from "./components/ModeSelectionScreen";
 import { ActiveTab, CreatedSecretResult, SecretFormatter } from "./types";
 import { ShieldCheck, Lock, Terminal, Radio, Github } from "lucide-react";
 
-const ONBOARDING_KEY = "cipherdrop-onboarding-complete";
-
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("create");
+  // The Guided/Operator picker is the landing page — it shows on every
+  // visit, not just the first. Switching modes later (navbar toggle) is
+  // the escape hatch for changing your mind mid-session; it doesn't need
+  // to affect what greets you next time.
   const [uiMode, setUiMode] = useState<"guided" | "operator" | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [samplePayload, setSamplePayload] = useState<{ text: string; formatter: SecretFormatter } | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
-    return localStorage.getItem(ONBOARDING_KEY) !== "true";
-  });
+  // Same principle as the mode picker: this is a landing/explainer screen,
+  // not a one-time tutorial, so it shows on every fresh visit rather than
+  // being permanently dismissed after the first.
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(true);
 
+  // Initial pick from the ModeSelectionScreen: transitions with a fade/blur.
   const handleModeSelect = (mode: "guided" | "operator") => {
     setIsTransitioning(true);
     setTimeout(() => {
@@ -38,8 +42,21 @@ export function App() {
     }, 300);
   };
 
+  // In-app switch (navbar toggle): instant, no re-gating through the
+  // full-screen picker. This is the escape hatch — once you're in a mode
+  // you are never stuck there.
+  const OPERATOR_ONLY_TABS: ActiveTab[] = ["incident-room", "stego", "vault", "api-docs"];
+  const handleModeSwitch = (mode: "guided" | "operator") => {
+    setUiMode(mode);
+    // Dropping into guided mode from an operator-only tab would otherwise
+    // leave the user on a screen whose nav button just disappeared.
+    if (mode === "guided" && OPERATOR_ONLY_TABS.includes(activeTab)) {
+      setActiveTab("create");
+      window.location.hash = "";
+    }
+  };
+
   const completeOnboarding = () => {
-    localStorage.setItem(ONBOARDING_KEY, "true");
     setShowOnboarding(false);
   };
 
@@ -194,6 +211,7 @@ export function App() {
             }}
             onNewSecret={handleNewSecret}
             uiMode={uiMode}
+            onModeSwitch={handleModeSwitch}
             onOpenVerifyModal={() => setShowVerifyModal(true)}
           />
 
@@ -219,6 +237,7 @@ export function App() {
                   ) : (
                     <>
                       <HeroSection
+                        uiMode={uiMode ?? undefined}
                         onScrollToEditor={() => {
                           const el = document.getElementById("secret-editor-container");
                           if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -229,6 +248,7 @@ export function App() {
                       />
                       <div id="secret-editor-container">
                         <SecretEditor
+                          uiMode={uiMode ?? undefined}
                           onSecretCreated={handleSecretCreated}
                           initialText={samplePayload?.text}
                           initialFormatter={samplePayload?.formatter}

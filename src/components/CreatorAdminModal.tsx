@@ -136,7 +136,7 @@ export const CreatorAdminModal: React.FC<CreatorAdminModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-2xl">
-      <TerminalWindow path="anonymous@cipherdrop — admin" glow>
+      <TerminalWindow path="anonymous@crypton — admin" glow>
       <div className="relative text-slate-100 space-y-6 p-6 sm:p-8">
 
         {/* Close button */}

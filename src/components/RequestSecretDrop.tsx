@@ -165,7 +165,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
   if (isSubmitter) {
     return (
       <div className="max-w-xl mx-auto space-y-6">
-        <TerminalWindow path="anonymous@cipherdrop — inbound-drop" glow className="shadow-2xl">
+        <TerminalWindow path="anonymous@crypton — inbound-drop" glow className="shadow-2xl">
         <div className="p-6 sm:p-8 space-y-6">
 
           <div className="flex items-center gap-3">
@@ -248,7 +248,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
     <div className="max-w-4xl mx-auto space-y-6">
 
       {/* Intro Banner */}
-      <TerminalWindow path="anonymous@cipherdrop — request-drop" glow>
+      <TerminalWindow path="anonymous@crypton — request-drop" glow>
       <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -271,7 +271,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
 
       {!createdDrop ? (
         /* Create Drop Form */
-        <TerminalWindow path="anonymous@cipherdrop — request-drop --new">
+        <TerminalWindow path="anonymous@crypton — request-drop --new">
         <div className="p-6 sm:p-8 space-y-6">
           <form onSubmit={handleCreateDropLink} className="space-y-4">
             <div>
@@ -324,7 +324,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
         <div className="space-y-6">
 
           {/* Link Share Box */}
-          <TerminalWindow path="anonymous@cipherdrop — request-drop --listening" accent="emerald" glow className="shadow-xl">
+          <TerminalWindow path="anonymous@crypton — request-drop --listening" accent="emerald" glow className="shadow-xl">
           <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">
@@ -361,7 +361,7 @@ export const RequestSecretDrop: React.FC<RequestSecretDropProps> = ({
 
           {/* Received Secret View */}
           {receivedSecret ? (
-            <TerminalWindow path="anonymous@cipherdrop — request-drop --received" accent="emerald" glow>
+            <TerminalWindow path="anonymous@crypton — request-drop --received" accent="emerald" glow>
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-sm">
                 <Unlock className="w-5 h-5" />

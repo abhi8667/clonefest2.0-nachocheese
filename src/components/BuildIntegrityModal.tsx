@@ -83,7 +83,7 @@ export const BuildIntegrityModal: React.FC<BuildIntegrityModalProps> = ({ onClos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-2xl">
-        <TerminalWindow path="anonymous@cipherdrop — verify --build-integrity" accent="emerald" glow>
+        <TerminalWindow path="anonymous@crypton — verify --build-integrity" accent="emerald" glow>
           <div className="relative text-slate-100 space-y-6 p-6 sm:p-8">
             
             {/* Close button */}
@@ -186,7 +186,7 @@ export const BuildIntegrityModal: React.FC<BuildIntegrityModalProps> = ({ onClos
               </h4>
               <p className="text-[11px]">
                 Under the Untrusted Server Assumption, a malicious host could attempt to serve modified JavaScript to a specific target to steal private keys. 
-                CipherDrop mitigates this via Subresource Integrity (SRI) pinning and independent cryptographic build hashing.
+                Crypton mitigates this via Subresource Integrity (SRI) pinning and independent cryptographic build hashing.
               </p>
             </div>
 

@@ -254,7 +254,7 @@ export const StegoTool: React.FC = () => {
       {activeSubTab === 'embed' ? (
         /* EMBED MODE */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <TerminalWindow path="anonymous@cipherdrop — stego/embed">
+          <TerminalWindow path="anonymous@crypton — stego/embed">
           <div className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-mono text-slate-300 uppercase mb-1">
@@ -339,7 +339,7 @@ export const StegoTool: React.FC = () => {
           </TerminalWindow>
 
           {/* Embed Result Preview */}
-          <TerminalWindow path="anonymous@cipherdrop — stego/output">
+          <TerminalWindow path="anonymous@crypton — stego/output">
           <div className="p-6 flex flex-col justify-between h-full space-y-4">
             {embedResultBlobUrl && embedResultKey ? (
               <div className="space-y-4 animate-fadeIn">
@@ -397,7 +397,7 @@ export const StegoTool: React.FC = () => {
       ) : activeSubTab === 'extract' ? (
         /* EXTRACT MODE */
         <div className="max-w-xl mx-auto">
-        <TerminalWindow path="anonymous@cipherdrop — stego/extract">
+        <TerminalWindow path="anonymous@crypton — stego/extract">
         <div className="p-6 sm:p-8 space-y-6">
 
           <div className="space-y-4">
@@ -486,7 +486,7 @@ export const StegoTool: React.FC = () => {
       ) : (
         /* FORENSIC WATERMARK DETECTIVE TAB */
         <div className="max-w-2xl mx-auto animate-fadeIn">
-        <TerminalWindow path="anonymous@cipherdrop — watermark-detective" glow>
+        <TerminalWindow path="anonymous@crypton — watermark-detective" glow>
         <div className="p-6 sm:p-8 space-y-6">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">

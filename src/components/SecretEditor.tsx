@@ -39,6 +39,7 @@ interface SecretEditorProps {
   onSecretCreated: (result: CreatedSecretResult) => void;
   initialText?: string;
   initialFormatter?: SecretFormatter;
+  uiMode?: 'guided' | 'operator';
 }
 
 const LANGUAGES = [
@@ -103,8 +104,14 @@ function estimatePasswordStrength(pass: string): { entropy: number; score: numbe
   return { entropy, score, crackTime, label, color };
 }
 
-export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, initialText, initialFormatter }) => {
+export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, initialText, initialFormatter, uiMode = 'guided' }) => {
+  // Guided mode is the "just share a secret" experience: no format switching,
+  // no multi-party/quorum architecture, no KDF choice, no duress mode — those
+  // are all operator-only. This isn't a re-skin, it's a different feature set.
+  const isGuided = uiMode === 'guided';
+
   // Progressive disclosure: hide Duress / Time-Lock / Multi-Recipient / Quorum behind an Advanced toggle
+  // (operator-only — guided mode never renders the toggle, so this can never flip true there)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
   // Sharing Mode: Standard (Single Key) vs Multi-Recipient Envelopes vs Quorum Unlock (Shamir M-of-N)
@@ -126,8 +133,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
     'Charlie (Legal / Compliance)',
   ]);
 
-  // Mode & Content State
-  const [formatter, setFormatter] = useState<SecretFormatter>(initialFormatter || 'code');
+  // Mode & Content State — guided mode has no format tabs, so it stays on
+  // plaintext; operator defaults to code (matches the tab bar it can see).
+  const [formatter, setFormatter] = useState<SecretFormatter>(initialFormatter || (isGuided ? 'plaintext' : 'code'));
   const [language, setLanguage] = useState<string>('javascript');
   const [text, setText] = useState<string>(initialText || '');
   
@@ -601,7 +609,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
 
   return (
     <div className="max-w-5xl mx-auto">
-    <TerminalWindow path="anonymous@cipherdrop — new-secret" glow stagger={2}>
+    <TerminalWindow path="anonymous@crypton — new-secret" glow stagger={2}>
     <form
       onSubmit={(e) => {
         e.preventDefault();
@@ -610,7 +618,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
       className="space-y-6 p-6"
     >
 
-      {/* Advanced Options Bar */}
+      {/* Advanced Options Bar — operator only. Guided mode never sees the
+          multi-party/quorum/duress/KDF surface at all, not even collapsed. */}
+      {!isGuided && (
       <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-obsidian-950 rounded-2xl border border-white/5">
         <button
           type="button"
@@ -631,6 +641,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
           Argon2id KDF • Shamir Quorum • Watermarking • Decoy Mode
         </span>
       </div>
+      )}
 
       {/* Sharing Mode Switcher */}
       {showAdvanced && (
@@ -887,8 +898,12 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
         
         {/* Editor Sub-Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-obsidian-950/80 border-b border-white/5">
-          
-          {/* Formatter Tabs */}
+
+          {/* Formatter Tabs — operator only. Guided mode is always plain
+              text: no format switching, no language picker, one text box. */}
+          {isGuided ? (
+            <span className="text-xs font-mono text-slate-400">Your secret</span>
+          ) : (
           <div className="flex items-center gap-1 bg-obsidian-900 p-1 rounded-xl border border-white/10">
             <button
               type="button"
@@ -933,9 +948,10 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
               Plaintext
             </button>
           </div>
+          )}
 
           <div className="flex items-center gap-3">
-            {formatter === 'code' && (
+            {!isGuided && formatter === 'code' && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 font-mono">Language:</span>
                 <select
@@ -949,13 +965,13 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
                 </select>
               </div>
             )}
-            {formatter === 'markdown' && (
+            {!isGuided && formatter === 'markdown' && (
               <span className="text-xs text-slate-400 font-mono">Live preview & Markdown</span>
             )}
-            {formatter === 'env' && (
+            {!isGuided && formatter === 'env' && (
               <span className="text-xs text-slate-400 font-mono">Key-Value Secret Credentials</span>
             )}
-            {formatter === 'plaintext' && (
+            {!isGuided && formatter === 'plaintext' && (
               <span className="text-xs text-slate-400 font-mono">Raw Text</span>
             )}
 
@@ -983,7 +999,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder={
-                formatter === 'code'
+                isGuided
+                  ? 'Type or paste whatever you want to share — a password, a note, anything…'
+                  : formatter === 'code'
                   ? '// Paste your sensitive code, private keys (PEM), or server configuration here…'
                   : 'Paste confidential message, passwords, or sensitive notes here…'
               }
@@ -1111,7 +1129,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
           className="border-t border-dashed border-white/10 px-4 py-2 text-center text-xs text-slate-500 hover:text-slate-400 bg-obsidian-950/40 transition-colors cursor-pointer"
           onClick={() => fileInputRef.current?.click()}
         >
-          <span>💡 Drag & drop any binary file (PDF, image, zip) here to encrypt client-side</span>
+          <span>💡 {isGuided ? 'Or drop a file here to attach it' : 'Drag & drop any binary file (PDF, image, zip) here to encrypt client-side'}</span>
         </div>
       </div>
 
@@ -1132,25 +1150,40 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className={isGuided ? '' : 'grid grid-cols-2 gap-2'}>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Time to Live (TTL)</label>
+              <label className="block text-xs text-slate-400 mb-1">
+                {isGuided ? 'When should it disappear?' : 'Time to Live (TTL)'}
+              </label>
               <select
                 value={expireOption}
                 onChange={(e) => setExpireOption(e.target.value)}
                 className="w-full bg-obsidian-900 border border-white/10 text-xs text-slate-200 rounded-lg p-2 font-mono focus:border-emerald-500 focus:outline-none"
               >
-                <option value="burn">🔥 Burn after 1 view</option>
-                <option value="5min">5 Minutes</option>
-                <option value="15min">15 Minutes</option>
-                <option value="1hour">1 Hour</option>
-                <option value="1day">1 Day (Default)</option>
-                <option value="7days">7 Days</option>
-                <option value="30days">30 Days</option>
-                <option value="never">Never (Persistent)</option>
+                {isGuided ? (
+                  <>
+                    <option value="burn">🔥 After it's read once</option>
+                    <option value="1hour">In 1 hour</option>
+                    <option value="1day">In 1 day (default)</option>
+                    <option value="7days">In 7 days</option>
+                    <option value="never">Never expires</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="burn">🔥 Burn after 1 view</option>
+                    <option value="5min">5 Minutes</option>
+                    <option value="15min">15 Minutes</option>
+                    <option value="1hour">1 Hour</option>
+                    <option value="1day">1 Day (Default)</option>
+                    <option value="7days">7 Days</option>
+                    <option value="30days">30 Days</option>
+                    <option value="never">Never (Persistent)</option>
+                  </>
+                )}
               </select>
             </div>
 
+            {!isGuided && (
             <div>
               <label className="block text-xs text-slate-400 mb-1">Max View Count</label>
               <select
@@ -1166,8 +1199,10 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
                 <option value="10">10 Views</option>
               </select>
             </div>
+            )}
           </div>
 
+          {!isGuided && (
           <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
             <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
               <input
@@ -1183,6 +1218,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
               </span>
             </label>
           </div>
+          )}
         </div>
 
         {/* Password & Coercion Resistance Card */}
@@ -1190,7 +1226,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono">Password & Hardening</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono">{isGuided ? 'Password' : 'Password & Hardening'}</h3>
             </div>
             {useDuress && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 font-mono">
@@ -1207,7 +1243,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
                 onChange={(e) => setUsePassword(e.target.checked)}
                 className="rounded border-white/20 bg-obsidian-900 text-emerald-500 focus:ring-emerald-500/20"
               />
-              <span>Require Decryption Passphrase</span>
+              <span>{isGuided ? 'Protect with a password' : 'Require Decryption Passphrase'}</span>
             </label>
 
             {usePassword && (
@@ -1250,7 +1286,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
                   )}
                 </div>
 
-                {/* KDF selection */}
+                {/* KDF selection — operator only. Guided mode silently keeps
+                    the stronger Argon2id default without exposing the choice. */}
+                {!isGuided && (
                 <div className="pt-2 border-t border-white/5 space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-slate-300 font-mono flex items-center gap-1.5">
@@ -1317,18 +1355,20 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
                     </div>
                   )}
                 </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Duress Mode Accordion */}
-          {usePassword && !showAdvanced && (
+          {/* Duress Mode — operator only. Guided mode gets neither the
+              teaser hint nor the control; there's nothing to point it at. */}
+          {!isGuided && usePassword && !showAdvanced && (
             <p className="pt-2 border-t border-white/5 text-[11px] text-slate-500 flex items-center gap-1.5">
               <ShieldAlert className="w-3 h-3 text-amber-400/70" />
               Need plausible deniability? Turn on <span className="text-emerald-400 font-mono">Advanced Options</span> above for duress mode.
             </p>
           )}
-          {usePassword && showAdvanced && (
+          {!isGuided && usePassword && showAdvanced && (
             <div className="pt-2 border-t border-white/5 space-y-2">
               <label className="flex items-center gap-2 text-xs text-amber-300 cursor-pointer">
                 <input
@@ -1458,7 +1498,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-400 font-sans">
-                        Server-assisted gate: The CipherDrop API will refuse normal retrieval and return <code className="text-amber-300 font-mono">HTTP 423 Locked</code> until this release timestamp.
+                        Server-assisted gate: The Crypton API will refuse normal retrieval and return <code className="text-amber-300 font-mono">HTTP 423 Locked</code> until this release timestamp.
                       </p>
                     </div>
                   );
@@ -1469,7 +1509,7 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
         </div>
         )}
 
-        {!showAdvanced && (
+        {!isGuided && !showAdvanced && (
           <div className="glass-panel p-4 rounded-2xl border border-white/10 md:col-span-2 flex items-center gap-2.5 text-xs text-slate-500">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
             Need Quorum multi-trustee approvals, Argon2id KDF, or scheduled time-lock? Check <span className="text-emerald-400 font-mono">Cryptographic Options</span> above.
@@ -1495,7 +1535,9 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
           </div>
           <span>•</span>
           <span className="text-emerald-400">
-            {sharingMode === 'quorum' ? `Shamir Quorum (${quorumThreshold}-of-${quorumTotalShares})` : sharingMode === 'multi' ? `Multi-Recipient (${recipients.length} Slots)` : 'Zero-Knowledge AES-GCM'}
+            {isGuided
+              ? 'Encrypted in your browser'
+              : sharingMode === 'quorum' ? `Shamir Quorum (${quorumThreshold}-of-${quorumTotalShares})` : sharingMode === 'multi' ? `Multi-Recipient (${recipients.length} Slots)` : 'Zero-Knowledge AES-GCM'}
           </span>
         </div>
 
@@ -1507,13 +1549,15 @@ export const SecretEditor: React.FC<SecretEditorProps> = ({ onSecretCreated, ini
           {isEncrypting ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>Encrypting in WebCrypto…</span>
+              <span>{isGuided ? 'Creating your link…' : 'Encrypting in WebCrypto…'}</span>
             </>
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
               <span>
-                {sharingMode === 'quorum' ? 'Generate Quorum Secret & Trustee Shares' : sharingMode === 'multi' ? 'Generate Multi-Recipient Envelopes' : 'Encrypt & Create Secret Link'}
+                {isGuided
+                  ? 'Create Secret Link'
+                  : sharingMode === 'quorum' ? 'Generate Quorum Secret & Trustee Shares' : sharingMode === 'multi' ? 'Generate Multi-Recipient Envelopes' : 'Encrypt & Create Secret Link'}
               </span>
             </>
           )}

@@ -17,7 +17,7 @@ interface OnboardingLandingProps {
 }
 
 const LEDGER_LINES = [
-  '$ cipherdrop encrypt --local',
+  '$ crypton encrypt --local',
   '> AES-256-GCM key generated in-browser',
   '> plaintext never leaves this device',
   '> key embedded in URL fragment (#k=...)',
@@ -79,14 +79,14 @@ const MODES: {
 export const OnboardingLanding: React.FC<OnboardingLandingProps> = ({ onEnter }) => {
   return (
     <div className="max-w-5xl mx-auto animate-fade-in">
-      <TerminalWindow path="anonymous@cipherdrop — man cipherdrop" glow>
+      <TerminalWindow path="anonymous@crypton — man crypton" glow>
         <div className="p-6 sm:p-8">
 
         {/* Hero / Thesis */}
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono mb-5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            How CipherDrop Works
+            How Crypton Works
           </div>
           <h1 className="font-mono text-2xl sm:text-3xl font-bold text-white mb-3 tracking-tight">
             We can't read your secret.

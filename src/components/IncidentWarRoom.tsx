@@ -167,7 +167,7 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
   if (isNuked) {
     return (
       <div className="max-w-md mx-auto">
-      <TerminalWindow path="anonymous@cipherdrop — incident-room --nuked" accent="rose">
+      <TerminalWindow path="anonymous@crypton — incident-room --nuked" accent="rose">
       <div className="p-8 text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
           <Flame className="w-8 h-8 animate-pulse" />
@@ -202,7 +202,7 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
   if (!inRoom) {
     return (
       <div className="max-w-xl mx-auto space-y-6">
-        <TerminalWindow path="anonymous@cipherdrop — incident-room --join" accent="amber" glow className="shadow-2xl">
+        <TerminalWindow path="anonymous@crypton — incident-room --join" accent="amber" glow className="shadow-2xl">
         <div className="p-6 sm:p-8 space-y-6">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
@@ -276,7 +276,7 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
     <div className="max-w-6xl mx-auto space-y-6">
       
       {/* Top Banner */}
-      <TerminalWindow path="anonymous@cipherdrop — incident-room" accent="amber" glow className="shadow-xl">
+      <TerminalWindow path="anonymous@crypton — incident-room" accent="amber" glow className="shadow-xl">
       <div className="p-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
@@ -323,7 +323,7 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
         
         {/* Live Shared Pad (2 cols) */}
         <div className="lg:col-span-2">
-        <TerminalWindow path="anonymous@cipherdrop — scratchpad" accent="amber" stagger={2} className="flex flex-col h-full shadow-2xl" bodyClassName="flex flex-col flex-1 min-h-0">
+        <TerminalWindow path="anonymous@crypton — scratchpad" accent="amber" stagger={2} className="flex flex-col h-full shadow-2xl" bodyClassName="flex flex-col flex-1 min-h-0">
           <div className="px-6 py-3 bg-obsidian-950 border-b border-white/5 flex items-center justify-between text-xs font-mono text-slate-400">
             <span className="text-emerald-400 font-bold uppercase">Shared Incident Scratchpad</span>
             <span>Syncs live with peers</span>
@@ -340,7 +340,7 @@ export const IncidentWarRoom: React.FC<IncidentWarRoomProps> = ({
         </div>
 
         {/* Live E2EE Chat (1 col) */}
-        <TerminalWindow path="anonymous@cipherdrop — war-log" accent="amber" stagger={3} className="flex flex-col h-[520px] shadow-2xl" bodyClassName="flex flex-col flex-1 min-h-0">
+        <TerminalWindow path="anonymous@crypton — war-log" accent="amber" stagger={3} className="flex flex-col h-[520px] shadow-2xl" bodyClassName="flex flex-col flex-1 min-h-0">
           <div className="px-4 py-3 bg-obsidian-950 border-b border-white/5 flex items-center justify-between text-xs font-mono text-slate-400">
             <span className="text-slate-200 font-bold uppercase">E2EE War Log</span>
             <input

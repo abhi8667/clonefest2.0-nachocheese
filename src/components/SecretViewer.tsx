@@ -496,7 +496,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto">
-      <TerminalWindow path="anonymous@cipherdrop — fetching">
+      <TerminalWindow path="anonymous@crypton — fetching">
       <div className="p-12 flex flex-col items-center justify-center space-y-4">
         <div className="relative w-16 h-16">
           <div className="w-16 h-16 rounded-2xl border-2 border-emerald-500/30 border-t-emerald-400 animate-spin"></div>
@@ -515,7 +515,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   if (fetchError) {
     return (
       <div className="max-w-xl mx-auto">
-      <TerminalWindow path="anonymous@cipherdrop — unavailable" accent="rose">
+      <TerminalWindow path="anonymous@crypton — unavailable" accent="rose">
       <div className="p-8 text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
           <Flame className="w-8 h-8" />
@@ -547,7 +547,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     const isThresholdReached = enteredShares.length >= quorumThreshold;
     return (
       <div className="max-w-2xl mx-auto animate-fadeIn">
-      <TerminalWindow path="anonymous@cipherdrop — quorum-unlock" glow className="shadow-2xl">
+      <TerminalWindow path="anonymous@crypton — quorum-unlock" glow className="shadow-2xl">
       <div className="p-6 sm:p-8 space-y-6">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -699,7 +699,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     const isUnlockedNow = timeLockCountdown !== null && timeLockCountdown <= 0;
     return (
       <div className="max-w-xl mx-auto animate-fadeIn">
-      <TerminalWindow path="anonymous@cipherdrop — time-locked" accent="amber" glow className="shadow-2xl">
+      <TerminalWindow path="anonymous@crypton — time-locked" accent="amber" glow className="shadow-2xl">
       <div className="p-8 text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
           {isUnlockedNow ? <Unlock className="w-8 h-8 text-emerald-400 animate-bounce" /> : <Lock className="w-8 h-8 text-amber-400" />}
@@ -796,7 +796,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     const isArgon2 = pasteData?.payload?.kdf === 'argon2id';
     return (
       <div className="max-w-md mx-auto">
-      <TerminalWindow path="anonymous@cipherdrop — locked" glow>
+      <TerminalWindow path="anonymous@crypton — locked" glow>
       <div className="p-8 space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -872,7 +872,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
   if (isBurnedFromMemory) {
     return (
       <div className="max-w-md mx-auto">
-      <TerminalWindow path="anonymous@cipherdrop — zeroized" accent="rose">
+      <TerminalWindow path="anonymous@crypton — zeroized" accent="rose">
       <div className="p-8 text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
           <ShieldCheck className="w-8 h-8" />
@@ -903,7 +903,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
     <div className={`max-w-5xl mx-auto space-y-6 transition-all duration-700 ${isBurningAnimation ? 'opacity-0 scale-95 filter blur-md' : 'opacity-100 scale-100'}`}>
 
       {/* Top Banner: Status & Zeroization Controls */}
-      <TerminalWindow path="anonymous@cipherdrop — decrypted" glow className="shadow-xl">
+      <TerminalWindow path="anonymous@crypton — decrypted" glow className="shadow-xl">
       <div className="p-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -994,7 +994,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
 
       {/* Main Secret Content Viewer */}
       <TerminalWindow
-        path={`anonymous@cipherdrop — ${decryptedSecret?.formatter || 'view'}`}
+        path={`anonymous@crypton — ${decryptedSecret?.formatter || 'view'}`}
         glow
         className="shadow-2xl"
       >
@@ -1081,7 +1081,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
 
       {/* Discussion & Encrypted Comments Section */}
       {pasteData?.openDiscussion && (
-        <TerminalWindow path="anonymous@cipherdrop — discussion" className="shadow-xl">
+        <TerminalWindow path="anonymous@crypton — discussion" className="shadow-xl">
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-white/5 pb-4">
             <div className="flex items-center gap-2">
@@ -1158,7 +1158,7 @@ export const SecretViewer: React.FC<SecretViewerProps> = ({ pasteId, masterKey, 
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/80 backdrop-blur-md">
           <div className="w-full max-w-md">
-        <TerminalWindow path="anonymous@cipherdrop — delete" accent="rose">
+        <TerminalWindow path="anonymous@crypton — delete" accent="rose">
         <div className="p-6 space-y-4">
             <h3 className="font-mono text-sm font-bold text-rose-400 flex items-center gap-2">
               <Flame className="w-4 h-4" />
