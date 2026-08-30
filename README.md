@@ -250,7 +250,7 @@ All `/api/*` routes are protected by a sliding-window rate limiter (`express-rat
 | **Database Architecture** | SQLite with WAL (Write-Ahead Logging) Mode | ACID-Compliant Embedded Storage |
 | **Real-Time Transport** | Ephemeral WebSocket Blind Pub/Sub Relay | RFC 6455 |
 | **Client Cryptography** | W3C Web Cryptography API (`window.crypto.subtle`) | W3C Recommendation |
-| **Audio Synthesizer** | Web Audio API Oscillator & Gain Synthesizer | W3C Web Audio Recommendation |
+| **Audio Synthesizer** | Web audio API Oscillator & Gain Synthesizer | W3C Web Audio Recommendation |
 | **Memory Hygiene** | CSPRNG buffer zeroization (`crypto.getRandomValues`) | Defensive Systems Engineering |
 
 ### Frontend Stack (Verified Against Source)
